@@ -1,0 +1,54 @@
+/* Farm-life pages keep the same quiet earth tones as the field and its HUD. */
+.homestead-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin:20px 0 16px}
+.homestead-intro h3{font:700 29px/1.1 var(--display);color:#efe1af;margin:5px 0 8px}
+.homestead-intro p:not(.eyebrow){max-width:550px;font-size:12px;line-height:1.75;color:#b3bea1}
+.homestead-day{flex-shrink:0;border:1px solid #526044;padding:7px 9px;background:#242e20;font:10px var(--mono);color:#dfca85;white-space:nowrap}
+.homestead-stocks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px 0}
+.homestead-stock{padding:13px;background:#1b271c;border:1px solid #3d5036;min-width:0}
+.homestead-stock>span{display:block;font:9px/1.6 var(--mono);letter-spacing:.6px;color:#a2b091;text-transform:uppercase}
+.homestead-stock strong{display:block;color:#f1e5bd;font:500 25px/1.2 var(--mono);margin:5px 0}
+.homestead-stock strong small{font-size:12px;color:#a9b397}
+.homestead-stock>small{display:block;color:#abb89b;font-size:11px;line-height:1.5}
+.homestead-stores{display:flex;flex-wrap:wrap;gap:8px 20px;font:11px/1.6 var(--mono);color:#a9b69b;margin:15px 0}
+.homestead-stores strong{color:#e8dba8;font-weight:500}
+.homestead-recipes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+.homestead-card{display:flex;flex-direction:column;align-items:flex-start;gap:12px;background:#263021;border:1px solid #4d5d3f;padding:17px;min-width:0;box-shadow:0 3px 0 #141d13}
+.homestead-card h4{color:#e8dfbc;font:600 16px var(--sans);margin:0}
+.homestead-card p{font-size:12px;line-height:1.7;color:#b8c0a7}
+.homestead-card .homestead-yield{font:500 10px/1.6 var(--mono);color:#dfca85;letter-spacing:.4px}
+.homestead-card .homestead-cost{width:100%;margin-top:auto;padding-top:12px;border-top:1px solid #49563c;color:#cbd0b7;font:11px/1.7 var(--mono)}
+.homestead-card button{width:100%;min-height:42px;padding:10px 12px;text-align:center;background:#47512e;border-color:#9a955b;color:#f6e7b4}
+.homestead-card .homestead-reason{font-size:11px;line-height:1.65;min-height:3.3em;color:#b8c2a7}
+.homestead-card .homestead-reason.is-blocked{color:#dbb090}
+.homestead-card button:disabled{opacity:.6}
+.homestead-footnote{padding:13px 15px;border-left:2px solid #c3a864;background:#222a1f;font-size:12px;line-height:1.75;color:#bfc5aa;margin:18px 0}
+.homestead-herd{display:grid;grid-template-columns:1fr 1.25fr;gap:16px;align-items:start;margin-top:18px}
+.homestead-herd .homestead-card{gap:14px}
+.homestead-progress{width:100%;font-size:12px;line-height:1.6;color:#d5d9bf}
+.homestead-progress label{display:block;margin-bottom:7px}
+.homestead-progress progress{display:block;width:100%;height:9px;accent-color:#c9b35f;background:#141e15;border:1px solid #526044}
+.homestead-progress progress::-webkit-progress-bar{background:#141e15}
+.homestead-progress progress::-webkit-progress-value{background:#c9b35f}
+.homestead-cows h4,.survivor-bonds h4{font:600 14px var(--sans);color:#e4d9ac;margin:0 0 12px}
+.homestead-cows ul,.survivor-bonds ul{list-style:none;margin:0;padding:0}
+.homestead-cows li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 0;border-bottom:1px solid #405035;font-size:12px;color:#c9d1b8}
+.homestead-cows li small{display:block;color:#a0ae91;margin-top:4px;font-size:11px;line-height:1.5}
+.homestead-cows .cow-health{font:10px var(--mono);white-space:nowrap;color:#d6d5ae}
+.survivor-bonds{margin:22px 0;padding:16px;background:#202c1e;border:1px solid #43533a}
+.survivor-bonds .pop-note{margin-bottom:13px}
+.survivor-bonds li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #3b4b33;font-size:12px;color:#c6d1b7}
+.survivor-bonds li>span{display:flex;align-items:center;gap:12px}
+.survivor-bonds .bond-score{font:10px var(--mono);color:#dfca85}
+.survivor-bonds meter{width:78px;height:9px;accent-color:#b6b56f}
+.survivor-bonds meter::-webkit-meter-bar{border:0;border-radius:0;background:#35442e}
+.survivor-bonds meter::-webkit-meter-optimum-value{background:#b6b56f}
+.management-dialog .management-tabs{row-gap:7px}
+.management-dialog .management-tabs button{min-height:38px}
+@media(max-width:640px){
+ .homestead-intro{gap:10px}.homestead-intro h3{font-size:26px}.homestead-day{font-size:9px;padding:6px}
+ .homestead-stocks{grid-template-columns:repeat(2,minmax(0,1fr))}.homestead-stock{padding:11px}
+ .homestead-recipes,.homestead-herd{grid-template-columns:1fr}.homestead-card{padding:15px}
+ .homestead-card .homestead-reason{min-height:0}.homestead-stores{gap:6px 13px;font-size:10px}
+ .survivor-bonds{padding:12px}.survivor-bonds li{flex-wrap:wrap;gap:7px}.survivor-bonds li>span{gap:8px}
+ .management-dialog .management-tabs button{flex:1 1 calc(33.333% - 8px);min-height:40px}
+}

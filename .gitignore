@@ -1,0 +1,9 @@
+# Copies of the game made before each update (git keeps the history now)
+.backup/
+# Screenshots written by the browser tests
+evidence/
+# Codex's id for an OpenAI hosting project that was never published
+.openai/
+node_modules/
+.scratch-*
+*.log

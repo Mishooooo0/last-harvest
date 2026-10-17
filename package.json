@@ -1,0 +1,9 @@
+{
+  "name": "last-harvest",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node engine-test.mjs && node upgrade-test.mjs && node update15-test.mjs && node graphics-test.mjs && node homestead-test.mjs && node perimeter-test.mjs && node prices-test.mjs",
+    "start": "node serve.mjs"
+  }
+}

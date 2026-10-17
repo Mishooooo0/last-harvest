@@ -1,0 +1,450 @@
+/* ===== The game fills the window and every control floats over it as a HUD. =====
+   The HUD is laid out on the same 1280×720 grid as the canvas and scaled with it (--k),
+   so panels line up with the picture at any window size. */
+html,body{height:100%}
+body{margin:0;background:#0b100b;overflow:hidden}
+.game-shell{height:100dvh;display:grid;place-items:center;margin:0;padding:0;max-width:none}
+.game-frame{position:relative;width:min(100vw,calc(100dvh * 16 / 9));max-width:none;border:0;border-radius:0;background:#0b100b;box-shadow:none;overflow:visible}
+.game-frame .game-stage{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;isolation:isolate;background:#0b100b}
+.game-frame .game-stage canvas{width:100%;height:100%;display:block}
+.game-frame .game-toast{top:calc(64px * var(--k,1));z-index:9}
+
+.hud{position:absolute;left:0;top:0;width:1280px;height:720px;transform:scale(var(--k,1));transform-origin:0 0;z-index:4;pointer-events:none;font-size:13px;color:var(--ink)}
+.hud>*{pointer-events:auto}
+.is-title .hud,.in-house .hud{display:none}
+.hud .hud-panel{position:absolute;background:#111912eb;border:1px solid #4a573dcc;border-radius:6px;box-shadow:0 6px 20px #0007}
+.hud kbd{height:15px;min-width:15px;font-size:8px;box-shadow:none;padding:0 3px}
+
+/* Top-left: the clock, and the button that moves day to night. */
+.hud .hud-clock{left:12px;top:12px;width:236px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.hud .clock-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hud .day-number{display:flex;align-items:center;gap:7px}
+.hud .day-number strong{font:700 24px/1 var(--display);letter-spacing:.5px;color:var(--ink)}
+.hud .clock-weather{font:9px var(--mono);letter-spacing:1px;color:#a7b395}
+.hud .phase-block{width:auto}
+.hud .phase-top{font-size:9px}
+.hud .phase-confirm{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:7px 10px;border:1px solid #5d6a48;border-radius:4px;background:#232d1f;color:#d7dcc5;font:600 12px var(--sans)}
+.hud .phase-confirm:hover:not(:disabled){border-color:#a8975f;background:#2d3826}
+.hud .phase-confirm.ready{background:var(--gold);color:#2a301f;border-color:#edcf82;animation:confirm-pulse 1.4s ease-in-out infinite}
+.hud .phase-confirm.ready kbd{background:#3b3a22;color:#f2df9f;border-color:#6d6639}
+.hud .phase-confirm:disabled{opacity:.55;cursor:default}
+@keyframes confirm-pulse{50%{box-shadow:0 0 0 5px #e9c56a40}}
+
+/* Top-centre: supplies. */
+.hud .hud-resources{top:12px;left:50%;transform:translateX(-50%);display:flex;gap:15px;padding:9px 14px;margin:0;border-left:1px solid #4a573dcc;width:auto;order:0;justify-content:flex-start}
+.hud .resource strong{font-size:14px}
+.hud .resource>span{font-size:7px}
+
+/* Top-right: health, save, speed and the system buttons. */
+.hud .hud-system{right:12px;top:12px;display:flex;align-items:center;gap:12px;padding:8px 10px}
+.hud .vitals{gap:12px}
+.hud .vital-details{width:62px}
+.hud .vital-label{font-size:8px}
+.hud .system-buttons{display:flex;align-items:center;gap:4px}
+.hud .system-buttons .icon-button{width:30px;height:30px;font:700 13px var(--sans)}
+.hud .colony-tools{gap:4px}
+.hud .colony-tools button{font:9px var(--mono);padding:7px 7px}
+
+/* Left: objectives, alerts and the campaign. */
+.hud .hud-objectives{left:12px;top:142px;width:236px;max-height:420px;overflow:auto;padding:10px 12px;scrollbar-width:thin}
+.hud .hud-objectives summary{cursor:pointer;list-style:none;font:600 9px var(--mono);letter-spacing:1.2px;color:#9fab8f;display:flex;flex-direction:column;gap:3px}
+.hud .hud-objectives summary::-webkit-details-marker{display:none}
+.hud .hud-objectives summary span{font:600 12px var(--sans);letter-spacing:0;color:var(--gold)}
+.hud .hud-objectives:not([open]){width:auto}
+.hud .mission-goals{gap:7px;margin-top:10px}
+.hud .goal{font-size:11px;gap:7px;color:#b6c0a4}
+.hud .goal-counter{font-size:10px}
+.hud .goal-check{width:11px;height:11px}
+.hud-colony{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.hud-colony:empty{display:none}
+.hud-forecast{font:10px/1.5 var(--mono);color:#d9c47c;padding-top:8px;border-top:1px solid #2f3a29}
+.hud-alerts{display:flex;flex-direction:column;gap:5px}
+.hud-alerts span{border-left:2px solid #b9825e;background:#2c2a1f;padding:6px 8px;line-height:1.45;font-size:11px;color:#efd9c4}
+.hud-tutorial{border-top:1px solid #2f3a29;padding-top:8px}
+.hud-tutorial summary{cursor:pointer;font:600 10px var(--mono);letter-spacing:1px;color:#bdc6ac}
+.hud-tutorial .tutorial-steps{flex-direction:column;gap:4px;padding-top:6px}
+.hud-tutorial .tutorial-steps span{font-size:11px;line-height:1.45}
+.hud-tutorial .text-button{margin-top:4px;font-size:9px;padding:2px 0}
+.hud .campaign-card{margin-top:0;padding:9px}
+.hud .campaign-card p{font-size:11px;margin:6px 0}
+
+/* Bottom-centre: your people. */
+.hud .hud-people{left:228px;right:336px;bottom:12px;padding:7px 9px}
+.people-head{display:flex;align-items:center;gap:14px;font:9px var(--mono);letter-spacing:.6px;color:#9aa58b;margin-bottom:6px;white-space:nowrap}
+.people-head strong{color:#e3e6d4;font-weight:500}
+.people-head .icon{width:12px;height:12px;vertical-align:-2px}
+.people-head .people-tip{margin-left:auto;color:#7f8d71}
+.people-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.pcard{display:flex;align-items:center;gap:8px;padding:6px 7px;background:#1f281c;border:1px solid #35422c;border-radius:4px;cursor:pointer;min-width:0;text-align:left;color:inherit;font:inherit}
+.pcard:hover{border-color:#566544}
+.pcard.selected{border-color:var(--gold);background:#33331f}
+.pcard.alarm{border-color:#a8634f}
+.pcard.away{opacity:.6}
+.pc-avatar{position:relative;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:var(--shirt);display:flex;align-items:center;justify-content:center;font:600 13px var(--sans);color:#f3ecd2;box-shadow:inset 0 -3px 0 #0003}
+.pc-avatar kbd{position:absolute;right:-6px;bottom:-5px;height:13px;min-width:13px;font-size:7px;padding:0 2px}
+.pc-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pc-info strong{font-size:12px;font-weight:600;color:#e2e6d1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-job{font:9px var(--mono);color:#c6b06a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-status{font:9px var(--mono);color:#93a083;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard.alarm .pc-status{color:#e0a07a}
+.pc-hp{height:3px}
+.pc-hp>span{background:#b88b76}
+
+/* Bottom-right: the command card. */
+.hud .hud-command{right:12px;bottom:12px;width:312px;padding:9px 10px;display:flex;flex-direction:column;gap:8px}
+.hud .selection-bar{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0}
+.hud .selection-text{white-space:normal;font:10px/1.5 var(--mono);color:#a7b297;overflow:visible}
+.hud .selection-text kbd{height:14px;min-width:14px;font-size:7px}
+.selection-actions{display:flex;gap:6px}
+.selection-actions:not(:has(button:not([hidden]))){display:none}
+.mini-button{font:10px var(--mono);padding:4px 8px;border:1px solid #4a5639;border-radius:3px;background:#1f281c;color:#c8ceba}
+.mini-button:hover{border-color:#827748}
+.command-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.cmd{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:5px;padding:7px 7px;background:#222c1f;border:1px solid #3d4934;border-radius:4px;color:#d3d9c3;font:600 11px var(--sans);text-align:left;min-width:0}
+.cmd span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmd:hover{border-color:#827748;background:#2c3526}
+.cmd.active{background:#3d3f24;border-color:#827748;color:var(--gold)}
+.cmd .icon{width:15px;height:15px}
+.hud-squad{display:flex;flex-direction:column;gap:6px;border-top:1px solid #2f3a29;padding-top:7px}
+.hud-squad[hidden]{display:none}
+.squad-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.squad-buttons button{font:600 10px var(--sans);padding:6px 4px;background:#222c1f;border:1px solid #3d4934;border-radius:3px;color:#d3d9c3}
+.squad-buttons button:hover:not(:disabled){border-color:#827748}
+.squad-buttons button:disabled{opacity:.45}
+.squad-fire{display:flex;align-items:center;justify-content:space-between;gap:8px;font:9px var(--mono);color:#9aa58b}
+.squad-fire select{color:#e8dfc5;background:#26301f;border:1px solid #4d5a3c;border-radius:3px;padding:4px 6px;font:10px var(--sans)}
+.squad-person{font:9px/1.5 var(--mono);color:#a7b297}
+.squad-person strong{color:#e4d79f;font-weight:500}
+
+/* Pop-up panels: supplies, and fields & gates. */
+.hud .hud-pop{right:12px;top:70px;width:340px;max-height:420px;overflow:auto;padding:10px 12px;z-index:2;scrollbar-width:thin}
+.pop-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.pop-head h2{font:600 10px var(--mono);letter-spacing:1.2px;color:#bdc6ac}
+.pop-close{background:none;border:0;color:#c8ceba;font-size:20px;line-height:1;padding:0 4px}
+.pop-note{font-size:11px;line-height:1.5;color:#97a58a;margin:0 0 8px}
+.hud .shop-list{display:grid;grid-template-columns:1fr;gap:5px}
+.hud .shop-item{min-height:42px;padding:6px 8px;gap:9px}
+.hud .shop-icon{width:26px;height:26px}
+.hud .shop-name{font-size:12px;white-space:normal}
+.hud .shop-name small{font-size:9px;margin-top:3px}
+.hud .shop-price{font-size:11px}
+#hud-fields .crop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#hud-fields .colony-label{margin:8px 0}
+#hud-fields .colony-actions{margin:8px 0 2px}
+#hud-fields .colony-actions button{font-size:11px;padding:7px 9px}
+
+/* Placing defenses: the palette sits just above your people. */
+.hud .defense-bar{position:absolute;left:228px;right:336px;bottom:104px;flex-wrap:nowrap}
+.is-placing .hud .hud-people{opacity:.55}
+
+/* ===== The starting pack and the operations board ===== */
+.pack-dialog,.ops-dialog{padding:0;border:0;background:transparent;width:min(1160px,96vw);max-width:none;max-height:94dvh;color:var(--ink);overflow:visible}
+.pack-dialog::backdrop,.ops-dialog::backdrop{background:#070b07cc}
+.pack-modal,.ops-modal{background:#162016;border:1px solid #4f5c40;border-radius:8px;padding:20px 22px;max-height:94dvh;overflow:auto;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px #000a}
+.pack-modal h2,.ops-head h2{font:700 32px/1 var(--display);margin:6px 0;color:var(--ink)}
+.pack-sub,.ops-sub{font-size:12px;line-height:1.6;color:#a5b196}
+.pack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.pack-card{background:#1f281c;border:1px solid #3d4934;border-radius:6px;padding:12px;animation:pack-in .4s both}
+.pack-card:nth-child(2){animation-delay:.08s}.pack-card:nth-child(3){animation-delay:.16s}.pack-card:nth-child(4){animation-delay:.24s}.pack-card:nth-child(5){animation-delay:.32s}
+@keyframes pack-in{from{opacity:0;transform:translateY(10px)}}
+.pack-card h3{font:600 10px var(--mono);letter-spacing:1.2px;color:#c6b06a;margin-bottom:6px}
+.pack-item{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12px;color:#d7dcc6;border-top:1px solid #2c3727}
+.pack-item:first-of-type{border-top:0}
+.pack-item>.icon{width:16px;height:16px;color:#c6b06a}
+.pack-item .pc-avatar{width:24px;height:24px;font-size:11px}
+.pack-item div{min-width:0}
+.pack-item small{display:block;font:9px/1.5 var(--mono);color:#8a977b}
+.pack-item>strong{margin-left:auto;font:500 13px var(--mono);color:#efe4bd;white-space:nowrap}
+.pack-foot,.ops-foot{display:flex;align-items:center;gap:10px}
+.pack-foot p{flex:1;font-size:12px;color:#a5b196}
+.pack-foot .primary-button,.ops-foot .primary-button{width:auto;min-width:210px}
+.ops-foot .secondary-button{min-height:40px}
+.pack-dialog:focus-visible,.ops-dialog:focus-visible{outline:none}
+@media(prefers-reduced-motion:reduce){.pack-card{animation:none}.hud .phase-confirm.ready{animation:none}}
+
+.ops-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.ops-stores{display:grid;grid-template-columns:repeat(3,auto);gap:4px 14px;font:9px var(--mono);letter-spacing:.6px;color:#a7b297;white-space:nowrap}
+.ops-stores strong{color:#e6e9d6;font-size:13px;font-weight:500;margin-left:4px}
+.ops-board{display:flex;flex-direction:column;gap:14px}
+.ops-group h3{font:600 10px var(--mono);letter-spacing:1.2px;color:#bdc6ac;margin-bottom:8px}
+.ops-group h3 small{font-weight:400;letter-spacing:.3px;color:#7f8d71;margin-left:8px}
+.ops-zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px}
+.ops-zone{background:#1d261b;border:1px dashed #44523a;border-radius:6px;padding:9px;min-height:118px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,background .15s;cursor:pointer}
+.ops-zone.drop-ok{border-color:var(--gold);border-style:solid;background:#2a2d1c}
+.ops-zone.disabled{opacity:.5;cursor:not-allowed}
+.ops-zone.busy{border-style:solid;border-color:#55654a}
+.zone-head{display:flex;align-items:center;gap:7px}
+.zone-head .icon{width:16px;height:16px;color:#a1af86;flex-shrink:0}
+.zone-head strong{font-size:13px;color:#e7e9d6}
+.zone-head small{margin-left:auto;font:9px var(--mono);color:#7f8d71;white-space:nowrap}
+.zone-info{font-size:11px;line-height:1.45;color:#9fac8f}
+.zone-warn{font-size:11px;line-height:1.45;color:#eeaa86}
+.zone-warn:empty{display:none}
+.zone-people{display:flex;flex-direction:column;gap:5px;flex:1}
+.ops-chip{display:flex;align-items:center;gap:8px;padding:5px 7px;background:#2a3424;border:1px solid #4a573d;border-radius:4px;color:#e3e6d4;text-align:left;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;font:inherit;width:100%}
+.ops-chip:hover{border-color:#827748}
+.ops-chip.picked{border-color:var(--gold);box-shadow:0 0 0 2px #e9c56a55}
+.ops-chip.changed{background:#33331f}
+.ops-chip.locked{cursor:default;opacity:.75}
+.ops-chip .pc-avatar{width:24px;height:24px;font-size:11px}
+.ops-chip span:last-child{min-width:0}
+.ops-chip strong{display:block;font-size:12px}
+.ops-chip small{display:block;font:9px/1.4 var(--mono);color:#93a083;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ops-ghost{position:fixed;z-index:10;pointer-events:none;width:180px;transform:translate(-50%,-60%) rotate(-2deg);opacity:.95;box-shadow:0 10px 24px #000a}
+.ops-message{flex:1;font-size:12px;line-height:1.5;color:#eeaa86}
+.ops-message.ok{color:#b4d18b}
+
+/* ===== Narrow screens: the HUD stacks under the picture instead of over it. ===== */
+body.hud-stacked{overflow:auto}
+.hud-stacked .game-shell{height:auto;display:block}
+.hud-stacked .game-frame{width:100%}
+.hud-stacked .hud{position:static;transform:none;width:auto;height:auto;display:flex;flex-direction:column;gap:8px;padding:8px}
+.hud-stacked .hud .hud-panel,.hud-stacked .hud .defense-bar{position:static;width:auto;max-height:none;transform:none;left:auto;right:auto;top:auto;bottom:auto}
+.hud-stacked .hud .hud-resources{flex-wrap:wrap;justify-content:space-between}
+.hud-stacked .people-bar{grid-template-columns:repeat(2,minmax(0,1fr))}
+.hud-stacked .people-head .people-tip{display:none}
+.hud-stacked .hud .defense-bar{flex-wrap:wrap}
+.hud .defense-bar{pointer-events:none}
+.hud .defense-bar>*{pointer-events:auto}
+/* Layout fixes: supplies sit beside the clock, the command card uses two columns so labels fit. */
+.hud .hud-resources{left:260px;transform:none}
+.hud .hud-command{width:300px}
+.hud .command-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.hud .hud-people{right:324px}
+.hud .defense-bar{right:324px}
+.hud .hud-objectives{max-height:350px}
+.hud .hud-pop{max-height:360px}
+#hud-fields .crop-grid select{font-size:11px}
+@media(max-width:640px){.ops-head{flex-direction:column;gap:10px}.ops-zone{min-height:0}.pack-modal,.ops-modal{padding:14px}.pack-modal h2,.ops-head h2{font-size:26px}.ops-foot{flex-wrap:wrap}.ops-foot .primary-button,.pack-foot .primary-button{min-width:0;flex:1}}
+
+/* Update 15: automatic crops, forecasts, routines and farm management. */
+.routine-tools button,.management-dialog button,#gate-list button{background:#263522;border:1px solid #526044;border-radius:4px;color:#e4e8d3;font:600 12px var(--sans)}
+.routine-tools button:hover:not(:disabled),.management-dialog button:hover:not(:disabled),#gate-list button:hover:not(:disabled){background:#39482d;border-color:#b6a666}
+.management-dialog .icon-button{background:transparent;border-color:transparent;min-width:32px;min-height:32px}
+.hud-stacked .hud .hud-system{flex-wrap:wrap;gap:8px}
+.hud-stacked #hud-system-tools{flex-wrap:wrap;min-width:0}
+.plot-readout{display:flex;flex-direction:column;gap:5px;padding:9px;border:1px solid #43513c;border-radius:4px;font-size:11px}.plot-readout span{color:#b7c4aa}
+#gate-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.ops-forecast{padding:10px 12px;background:#253022;border:1px solid #4d5c41;border-radius:5px;font:12px/1.8 var(--mono);color:#d0d8bc}.ops-forecast strong{color:#edcf82}
+.routine-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px}.routine-tools button,#gate-list button{padding:7px 9px}.routine-tools label{display:flex;align-items:center;gap:5px}
+.hud #farm-life-btn{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px}.hud #farm-life-btn small{font-size:9px;color:#a8b396}.hud #farm-life-btn.event-ready{border-color:#e3c774}
+.management-dialog{width:min(900px,96vw);max-width:none}.management-dialog .help-modal{max-height:90dvh;overflow:auto}.management-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.management-head h2{font-size:30px;margin:0}.management-tabs,.survivor-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.management-tabs button,.survivor-tabs button{padding:9px 12px}.management-tabs .active,.survivor-tabs .active{background:#425137;border-color:#e1ca80;color:#fff1bf}
+.management-dialog button{cursor:pointer}.management-dialog button:disabled{opacity:.45;cursor:default}.management-dialog button:focus-visible,.routine-tools button:focus-visible{outline:2px solid #f4d681;outline-offset:3px}
+.profile-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.profile-stats span{display:flex;flex-direction:column;gap:5px;padding:10px;background:#202b1e}.skill-list>div,.construction-list article,.save-slots article{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #3c4934}.skill-list>div>span,.construction-list article>span{flex:1;font-size:12px;color:#b5c2a7}.skill-list button,.construction-list button,.save-slots button,.save-import button{padding:8px 10px}.skill-list strong{min-width:110px}.event-choices{display:flex;flex-direction:column;gap:10px}.event-choices button{padding:13px;text-align:left}.save-slots article>div{flex:1}.save-slots small{display:block;margin-top:5px;color:#a9b69b}.save-import{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-top:18px}.save-import label{display:flex;flex-direction:column;gap:8px}#management-message{min-height:1.5em;color:#efd88a}.management-dialog .pop-note{line-height:1.7}
+@media(max-width:640px){.profile-stats{grid-template-columns:repeat(2,1fr)}.skill-list>div,.construction-list article,.save-slots article{flex-wrap:wrap}.skill-list>div>span{flex-basis:60%}.save-slots article>div{flex-basis:100%}.management-tabs{gap:5px}.management-tabs button{flex:1;padding:9px 6px}}
+/* The Build window shows the game's messages, and locked upgrades say what they need. */
+.build-message{min-height:18px;margin:10px 0 0;font:12px/1.5 var(--mono);color:#eeaa86}
+.build-message.flash{animation:msg-flash .7s}
+@keyframes msg-flash{from{color:#ffe1a6}}
+.build-action.locked{font-size:11px;line-height:1.35;background:#2a2f22;color:#d6cba0;border-color:#5d6a48;box-shadow:none;white-space:normal;text-align:center}
+
+/* High resolution rendering keeps the scene aligned with the logical HUD and pointer grid. */
+.game-stage #game{image-rendering:pixelated;image-rendering:crisp-edges}
+.graphics-settings{display:grid;gap:9px;margin-top:24px;padding-top:20px;border-top:1px solid #43513a}
+.graphics-settings>label{font:600 10px var(--mono);letter-spacing:1px;color:#d7c27c}
+.graphics-settings select{width:100%;padding:11px;background:#172315;color:#e6e8d4;border:1px solid #566347;border-radius:4px;font:12px var(--sans)}
+.graphics-settings p{font-size:11px;line-height:1.7;color:#9eae8c}
+
+/* ===== Folding HUD: panels stay slim and open only when clicked (the ▲ tab or the panel's header) ===== */
+.hud .hud-fold .hud-slide{display:grid;grid-template-rows:0fr;transition:grid-template-rows .24s ease}
+.hud .hud-fold.pinned .hud-slide{grid-template-rows:1fr}
+.hud .hud-slide>.slide-inner{overflow:hidden;min-height:0}
+.hud .hud-fold.pinned{border-color:#a8975f}
+/* People: a strip of avatars while folded; the full cards slide up above it. */
+.hud .hud-people .people-head{margin-bottom:0;cursor:pointer}
+.hud .hud-people.pinned .people-bar{margin-bottom:7px}
+.people-strip{display:flex;align-items:center;gap:6px;margin-left:4px}
+.hud .hud-people.pinned .people-strip{display:none}
+.chip{position:relative;flex-shrink:0;width:24px;height:24px;padding:0;border-radius:50%;background:var(--shirt);border:2px solid #0000;color:#f3ecd2;font:600 10px var(--sans);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.chip.selected{border-color:var(--gold)}
+.chip.alarm{box-shadow:0 0 0 2px #c8704f}
+.chip.away{opacity:.45}
+.chip i{position:absolute;left:1px;right:1px;bottom:-6px;height:3px;border-radius:2px;background:#3a4230;overflow:hidden}
+.chip i b{display:block;height:100%;background:#b88b76}
+/* Command card: a row of icons while folded; labels, selection and squad orders when open. */
+.hud .hud-command:not(.pinned){width:auto;gap:0}
+.hud .hud-command:not(.pinned) .command-grid{grid-template-columns:repeat(7,auto)}
+.hud .hud-command:not(.pinned) .cmd{grid-template-columns:auto;padding:7px 8px}
+.hud .hud-command:not(.pinned) .cmd :is(span,kbd,small){display:none}
+.hud .hud-command.pinned .slide-inner{padding-bottom:8px}
+/* Objectives: the title and an alert count while folded. */
+.hud .hud-objectives summary{cursor:pointer}
+.fold-badge{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#7a3f2c;color:#ffd9c4;font:600 9px var(--mono);letter-spacing:0;vertical-align:1px}
+.hud-stacked .hud .hud-fold .hud-slide{grid-template-rows:1fr}
+.hud-stacked .people-strip{display:none}
+@media(prefers-reduced-motion:reduce){.hud .hud-fold .hud-slide{transition:none}}
+
+/* Breakfast leads into Farm life, then the plan for the day. */
+.house-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.house-overlay .house-actions .primary-button{width:auto;min-width:220px;flex-direction:column;gap:2px}
+.house-actions .primary-button small{font:500 9px var(--mono);letter-spacing:.4px;opacity:.75}
+.house-actions .secondary-button{min-height:34px;width:auto}
+.management-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+.management-foot .primary-button{width:auto;min-width:200px}
+
+/* The journal's buttons read clearly on the paper. */
+.journal-button{font:600 13px var(--sans);color:#3a2a18;background:#dccc9f;border:1.5px solid #6b5638;border-radius:4px;padding:8px 14px;box-shadow:0 2px 0 #6b5638;cursor:pointer}
+.journal-button:hover:not(:disabled){background:#eadcb3;color:#1f170d}
+.journal-button:active:not(:disabled){transform:translateY(1px);box-shadow:0 1px 0 #6b5638}
+.journal-button:disabled{opacity:.35;box-shadow:none;cursor:default}
+.journal-button:focus-visible{outline:2px solid #3a2a18;outline-offset:2px}
+.journal-nav{font-size:11px;color:#5a4a36}
+#journal-close{margin-top:10px}
+/* The Construction button sits in the grid like the other commands, so the folded row stays one line. */
+.hud .hud-command #farm-life-btn{grid-column:auto;display:grid;grid-template-columns:auto 1fr auto;justify-content:normal;gap:5px;padding:7px}
+.hud .hud-command:not(.pinned) #farm-life-btn{grid-template-columns:auto;padding:7px 8px}
+.fold-badge{align-self:flex-start}
+.journal-button{white-space:nowrap}
+.journal-nav{gap:8px}
+
+/* ===== Main menu (Update 26): a game-style menu over a living night scene, on the scaled 1280×720 grid ===== */
+.intro-overlay.title-screen{position:absolute;inset:0;z-index:6;display:block;padding:0;overflow:hidden;background:linear-gradient(90deg,#070c08f0 0%,#070c08d6 28%,#070c0880 46%,#070c0800 66%)}
+.intro-overlay.title-screen::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 95% at 70% 42%,#0000 52%,#030604c4 100%)}
+.title-fog{position:absolute;left:-10%;right:-10%;bottom:0;height:46%;pointer-events:none;background:radial-gradient(55% 60% at 25% 100%,#a9bfae1c,#0000 70%),radial-gradient(45% 55% at 72% 100%,#a9bfae14,#0000 70%);animation:fog-drift 22s ease-in-out infinite alternate}
+@keyframes fog-drift{to{transform:translateX(6%)}}
+.title-layer{position:absolute;left:0;top:0;width:1280px;height:720px;transform:scale(var(--k,1));transform-origin:0 0}
+.title-brand{position:absolute;left:64px;top:56px}
+.title-eyebrow{display:flex;align-items:center;gap:10px;font:10px var(--mono);letter-spacing:2.2px;color:#d7cf9f}
+.title-eyebrow span{width:26px;height:2px;background:var(--gold)}
+.title-logo{position:relative;font:800 116px/.8 var(--display);letter-spacing:-2px;color:#f0eaca;margin:20px 0 22px;text-shadow:0 4px 0 #3a3020,0 8px 0 #171c12,0 14px 26px #000c;animation:title-in .7s ease both}
+.title-logo span{display:block;color:var(--gold);text-shadow:0 4px 0 #7d5e22,0 8px 0 #2e2210,0 14px 26px #000c}
+.title-logo i{font-style:normal;color:#f0eaca}
+.title-moon{position:absolute;left:252px;top:-34px;width:64px;height:64px;shape-rendering:crispEdges;filter:drop-shadow(0 0 14px #f6e7a87a) drop-shadow(0 0 40px #f6e7a833);animation:moon-glow 5s ease-in-out infinite alternate}
+@keyframes moon-glow{to{filter:drop-shadow(0 0 20px #f6e7a899) drop-shadow(0 0 56px #f6e7a844)}}
+.title-tagline{font:500 17px/1.6 var(--sans);color:#dcdfc9;animation:title-in .7s .12s ease both}
+.title-layer.choosing .title-tagline{visibility:hidden}
+@keyframes title-in{from{opacity:0;transform:translateY(12px)}}
+/* The menu: one item per line, a pixel marker on the chosen one. */
+.title-nav{position:absolute;left:50px;top:378px;width:470px;display:flex;flex-direction:column;gap:2px}
+.title-nav[hidden],.title-newfarm[hidden]{display:none}
+.menu-item{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;padding:8px 18px 8px 44px;background:transparent;border:0;border-radius:4px;color:#c9cfb8;font:700 28px/1 var(--display);letter-spacing:.8px;text-transform:uppercase;text-align:left;cursor:pointer;text-shadow:0 2px 0 #0009;animation:title-in .5s ease both}
+.menu-item:nth-child(2){animation-delay:.24s}.menu-item:nth-child(3){animation-delay:.3s}.menu-item:nth-child(4){animation-delay:.36s}.menu-item:nth-child(5){animation-delay:.42s}.menu-item:nth-child(1){animation-delay:.18s}
+.menu-item small{font:500 11px/1.3 var(--mono);letter-spacing:.5px;color:#869276;text-transform:none;text-shadow:none}
+.menu-item::before{content:'';position:absolute;left:16px;top:15px;width:12px;height:14px;background:var(--gold);clip-path:polygon(0 0,34% 0,34% 15%,67% 15%,67% 36%,100% 36%,100% 64%,67% 64%,67% 85%,34% 85%,34% 100%,0 100%);opacity:0;transform:translateX(-8px);transition:opacity .12s,transform .12s steps(2)}
+.menu-item.active{color:#fff3c4;background:linear-gradient(90deg,#e9c56a30,#e9c56a0d 55%,#e9c56a00)}
+.menu-item.active::before{opacity:1;transform:none;animation:menu-nudge .9s steps(1) infinite}
+@keyframes menu-nudge{50%{transform:translateX(3px)}}
+.menu-item.active small{color:#cfc395}
+.menu-item:focus-visible{outline:none;box-shadow:inset 3px 0 0 var(--gold)}
+.menu-continue{font-size:36px;color:var(--gold)}
+.menu-continue::before{top:19px}
+/* New farm: the three ways to play, with the opening's pixel art. */
+.title-newfarm{position:absolute;left:50px;right:56px;top:300px;bottom:62px;display:flex;flex-direction:column;gap:14px;animation:title-in .35s ease both}
+.newfarm-head{display:flex;align-items:center;gap:16px;padding-left:12px}
+.newfarm-back{font:600 11px var(--mono);letter-spacing:1px;color:#cfd3bd;background:#0f160fcc;border:1px solid #4a573d;border-radius:4px;padding:7px 12px;cursor:pointer}
+.newfarm-back:hover,.newfarm-back:focus-visible{border-color:var(--gold);color:var(--gold);outline:none}
+.newfarm-head h3{margin:0;font:700 26px/1 var(--display);letter-spacing:.8px;text-transform:uppercase;color:#f0eaca}
+.newfarm-hint{margin:0 0 0 auto;font:12px var(--sans);color:#b7c2a6;text-shadow:0 1px 3px #000,0 0 10px #000c}
+.title-modes{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.title-mode{position:relative;display:flex;flex-direction:column;min-height:0;padding:0;overflow:hidden;text-align:left;color:#e6e9d6;background:#0e150ef5;border:2px solid #384430;border-radius:8px;box-shadow:0 14px 34px #000a;cursor:pointer;transition:transform .16s,border-color .16s,box-shadow .16s;animation:title-in .4s ease both}
+.title-mode:nth-child(2){animation-delay:.06s}.title-mode:nth-child(3){animation-delay:.12s}
+.title-mode.recommended{border-color:#7f7346}
+.mode-art{position:relative;display:block;height:132px;flex-shrink:0;background:var(--art) center 62%/cover no-repeat;image-rendering:pixelated;transition:transform .5s ease}
+.mode-art::after{content:'';position:absolute;inset:0;background:linear-gradient(#0000 45%,#0e150ef5)}
+.mode-body{display:flex;flex-direction:column;align-items:flex-start;gap:6px;flex:1;min-height:0;padding:4px 16px 14px}
+.mode-tag{font:600 9px var(--mono);letter-spacing:1.4px;color:var(--gold)}
+.title-mode strong{font:700 30px/1 var(--display);letter-spacing:.5px;color:#f0eaca;text-transform:uppercase}
+.mode-body>span{font-size:12.5px;line-height:1.5;color:#b5c0a2}
+.title-mode em{margin-top:auto;font:600 10px var(--mono);font-style:normal;letter-spacing:1px;color:#c9b56e}
+.title-mode .mode-go{position:absolute;right:14px;bottom:12px;padding:5px 9px;border-radius:3px;background:var(--gold);color:#2a301f;font:700 10px var(--mono);letter-spacing:1.2px;opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s}
+.title-mode.active{border-color:var(--gold);transform:translateY(-5px);box-shadow:0 18px 40px #000c,0 0 0 1px #e9c56a55}
+.title-mode.active .mode-art{transform:scale(1.07)}
+.title-mode.active .mode-go{opacity:1;transform:none}
+.title-mode:focus-visible{outline:none}
+/* Sound and fullscreen in the corner, the version in the other. */
+.title-corner{position:absolute;right:56px;bottom:24px;display:flex;gap:8px}
+.corner-button{font:600 10px var(--mono);letter-spacing:1px;text-transform:uppercase;color:#c9cfb8;background:#0b120bcc;border:1px solid #3f4b36;border-radius:4px;padding:7px 11px;cursor:pointer}
+.corner-button:hover,.corner-button:focus-visible{border-color:var(--gold);color:var(--gold);outline:none}
+.title-foot{position:absolute;left:64px;bottom:28px;font:9px var(--mono);letter-spacing:1.6px;color:#6f7d62}
+@media(prefers-reduced-motion:reduce){.title-logo,.title-tagline,.menu-item,.menu-item.active::before,.title-newfarm,.title-mode,.title-moon,.title-fog{animation:none}.title-mode,.mode-art{transition:none}}
+/* On phones the menu covers the window and scrolls. */
+.hud-stacked .intro-overlay.title-screen{position:fixed;inset:0;overflow:auto;background:#0b120bf5}
+.hud-stacked .title-fog{display:none}
+.hud-stacked .title-layer{position:static;transform:none;width:auto;height:auto;padding:22px 18px}
+.hud-stacked .title-brand,.hud-stacked .title-nav,.hud-stacked .title-newfarm,.hud-stacked .title-corner,.hud-stacked .title-foot{position:static;width:auto}
+.hud-stacked .title-logo{font-size:72px}
+.hud-stacked .title-moon{left:150px;top:-20px;width:40px;height:40px}
+.hud-stacked .title-layer.choosing .title-tagline{display:none}
+.hud-stacked .title-nav{margin-top:18px}
+.hud-stacked .menu-item{font-size:24px;padding-left:38px}
+.hud-stacked .menu-item::before{left:12px;top:13px}
+.hud-stacked .menu-continue{font-size:28px}
+.hud-stacked .title-newfarm{margin-top:14px}
+.hud-stacked .newfarm-head{flex-wrap:wrap;padding-left:0}
+.hud-stacked .newfarm-hint{margin-left:0;width:100%}
+.hud-stacked .title-modes{grid-template-columns:1fr}
+.hud-stacked .title-mode{flex-direction:row}
+.hud-stacked .mode-art{width:110px;height:auto}
+.hud-stacked .mode-art::after{background:linear-gradient(90deg,#0000 55%,#0e150ef5)}
+.hud-stacked .mode-body{padding:12px 14px}
+.hud-stacked .title-mode .mode-go{display:none}
+.hud-stacked .title-corner{display:flex;margin-top:16px}
+.hud-stacked .title-foot{margin-top:14px}
+
+/* ===== Hordes: the clock's forecast line, and the night banner ===== */
+.hud .horde-line{font:600 10px/1.4 var(--mono);letter-spacing:.4px;color:#a7b297;margin:-2px 0 0}
+.hud .horde-line.danger{color:#ff9d7a}
+.hud .hud-clock.horde-on{border-color:#a8634f;box-shadow:0 0 0 1px #a8634f55,0 6px 20px #0007}
+.hud .hud-clock.horde-on .phase-meter>span{background:#d9734f}
+.hud .night-banner{position:absolute;left:50%;top:205px;transform:translateX(-50%);z-index:3;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 34px;background:#0c120ccc;border-top:2px solid #a8975f;border-bottom:2px solid #a8975f;text-align:center;opacity:0}
+.hud .night-banner.danger{border-color:#d9734f}
+.hud .night-banner.show{animation:banner 3.6s ease both}
+.hud .night-banner strong{font:800 46px/1 var(--display);letter-spacing:3px;color:#f0eaca}
+.hud .night-banner.danger strong{color:#ffb08f;text-shadow:0 0 18px #d9734f88}
+.hud .night-banner span{font:600 13px var(--mono);letter-spacing:.8px;color:#d7dcc5}
+@keyframes banner{0%{opacity:0;transform:translateX(-50%) scale(.92)}10%{opacity:1;transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.hud .night-banner.show{animation:none;opacity:1}}
+/* The clock and the objectives share the left column, so the objectives always sit right below the clock. */
+.hud .hud-left{position:absolute;left:12px;top:12px;width:236px;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.hud .hud-left>*{pointer-events:auto}
+.hud .hud-left .hud-clock,.hud .hud-left .hud-objectives{position:relative;left:auto;top:auto}
+.hud .hud-left .hud-objectives{max-height:330px}
+.hud-stacked .hud .hud-left{position:static;width:auto;gap:8px}
+/* The HUD stays hidden on the title screen and at breakfast, on phones too. */
+body.is-title .hud,body.in-house .hud{display:none}
+
+/* ===== Update 22: fold tabs and the Settings window ===== */
+/* A tab on the top edge of each bottom panel: ▲ opens it, ▼ folds it. */
+.hud .fold-handle{position:absolute;z-index:2;right:14px;top:-18px;width:42px;height:18px;padding:0;border:1px solid #4a573dcc;border-bottom:0;border-radius:6px 6px 0 0;background:#111912eb;color:#d7c27c;font:700 10px/1 var(--sans);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 -3px 10px #0005}
+.hud .fold-handle::before{content:'▲'}
+.hud .hud-fold.pinned>.fold-handle::before{content:'▼'}
+.hud .fold-handle:hover,.hud .hud-fold:hover>.fold-handle{color:#fff1bf;background:#24301f}
+.hud .fold-handle:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+/* The objectives open downwards, so their tab sits inside the top-right corner. */
+.hud .hud-objectives>.fold-handle{top:7px;right:7px;width:24px;height:20px;border:1px solid #4a573d;border-radius:4px;box-shadow:none}
+.hud .hud-objectives>.fold-handle::before{content:'▼'}
+.hud .hud-objectives.pinned>.fold-handle::before{content:'▲'}
+.hud .hud-objectives summary{padding-right:26px}
+.hud-stacked .hud .fold-handle{display:none}
+
+.settings-dialog{max-width:520px}
+.settings-modal{padding:24px 28px;position:relative}
+.settings-head h2{font:700 34px var(--display);margin:6px 0 4px}
+.settings-section{margin-top:16px;padding-top:14px;border-top:1px solid #43513a;display:grid;gap:12px}
+.settings-section h3{margin:0;font:600 10px var(--mono);letter-spacing:1.4px;text-transform:uppercase;color:#d7c27c}
+#settings-graphics .graphics-settings{margin-top:0;padding-top:0;border-top:0}
+.settings-toggle{display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+.settings-toggle input{flex-shrink:0;width:18px;height:18px;margin:2px 0 0;accent-color:var(--gold);cursor:pointer}
+.settings-toggle span{display:grid;gap:3px}
+.settings-toggle strong{font-size:13px;color:#ece6cc}
+.settings-toggle small{font-size:11px;line-height:1.5;color:#9eae8c}
+.settings-toggle.disabled{opacity:.5;cursor:default}
+.settings-range{display:grid;grid-template-columns:auto 1fr 44px;gap:12px;align-items:center;font-size:13px;color:#ece6cc}
+.settings-range input{accent-color:var(--gold);width:100%}
+.settings-range output{font:600 11px var(--mono);color:#d7c27c;text-align:right}
+.settings-section .secondary-button{width:auto;justify-self:start;margin-top:0}
+.settings-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid #43513a}
+.settings-note{margin:0;font-size:11px;color:#7f8d71}
+.settings-foot .primary-button{width:auto;min-width:140px;justify-content:center}
+/* A folded command card is only as wide as its icon row; the hidden selection text no longer stretches it over the people panel. */
+.hud .hud-command:not(.pinned) .hud-slide{width:0}
+/* Prompts inside the stage (survivors, pause, game over) shrink with a small stage and scroll rather than clip their buttons. */
+.game-stage .state-overlay{overflow:auto;align-items:safe center;justify-content:safe center;padding:12px}
+.game-stage .state-card{zoom:clamp(.7,calc(var(--k,1)*1.6),1)}
+@media(max-width:640px){.state-card .secondary-button{font-size:10px;min-height:35px;min-width:155px}}
+
+/* ===== Update 23: a mistake in prices.json is reported on the title screen ===== */
+.prices-warning{position:absolute;right:56px;top:64px;width:430px;display:grid;gap:3px;margin:0;box-shadow:0 8px 24px #0008;padding:8px 12px;border:1px solid #b9783f;border-radius:5px;background:#2a1a10e6;color:#f1c79a;font:12px/1.45 var(--sans)}
+.prices-warning strong{font:600 10px var(--mono);letter-spacing:1px;text-transform:uppercase;color:#ffb877}
+.prices-warning[hidden]{display:none}
+.hud-stacked .prices-warning{position:static;width:auto;margin-top:18px}

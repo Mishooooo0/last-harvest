@@ -1,0 +1,48 @@
+{
+  "_readme": [
+    "Last Harvest prices, in scrap. Change a number, save this file, then reload the game (F5).",
+    "Use whole numbers. Buildings and upgrades have one price per level; levels a farm starts with are not listed.",
+    "If something here is wrong, the game keeps its built-in price for it and the title screen says what to fix.",
+    "After changing prices, run  node balance-sim.mjs  in the game folder: a bot plays 12 farms with these prices."
+  ],
+  "shop": {
+    "_what": "Supply store, per purchase: ammo = 12 shells, seeds = 6 seeds, heal = 35 health for one person, repair = 35 farmhouse health, cow = one cow for the pasture.",
+    "ammo": 10,
+    "seeds": 6,
+    "heal": 12,
+    "repair": 18,
+    "cow": 20
+  },
+  "buildings": {
+    "_what": "Each level is bought separately. waterTank = water tank, coop = chicken coop, market = market stall, doghouse = dog house.",
+    "field": { "level 2": 20, "level 3": 35, "level 4": 50, "level 5": 70 },
+    "warehouse": { "level 2": 50, "level 3": 80 },
+    "silo": { "level 1": 15, "level 2": 40, "level 3": 70, "level 4": 110 },
+    "well": { "level 1": 25, "level 2": 45, "level 3": 70 },
+    "waterTank": { "level 1": 35, "level 2": 60, "level 3": 90 },
+    "coop": { "level 1": 15, "level 2": 45, "level 3": 70 },
+    "pasture": { "level 1": 45, "level 2": 65, "level 3": 90 },
+    "doghouse": { "level 1": 30, "level 2": 50, "level 3": 75 },
+    "market": { "level 1": 15, "level 2": 35, "level 3": 55 },
+    "workshop": { "level 1": 15, "level 2": 45, "level 3": 75 },
+    "watchtower": { "level 1": 45, "level 2": 70, "level 3": 105 },
+    "generator": { "level 2": 60, "level 3": 85 },
+    "barn": { "level 1": 40, "level 2": 65, "level 3": 95 },
+    "clinic": { "level 1": 45, "level 2": 75, "level 3": 110 },
+    "radio": { "level 1": 55, "level 2": 80 }
+  },
+  "upgrades": {
+    "_what": "Farm upgrades. weapons needs blueprints from an expedition first.",
+    "crops": { "level 1": 45, "level 2": 70, "level 3": 105 },
+    "weapons": { "level 1": 60, "level 2": 90 }
+  },
+  "defenses": {
+    "_what": "Per piece placed. fenceRepair = mending one damaged fence section.",
+    "fence": 2,
+    "wire": 3,
+    "spikes": 5,
+    "mine": 10,
+    "gate": 5,
+    "fenceRepair": 1
+  }
+}
