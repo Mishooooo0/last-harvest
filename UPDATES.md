@@ -791,3 +791,88 @@ The user asked to make the game a repository and push it to GitHub, before any m
   - `.gitattributes`: git never converts line endings, so every file, including this log, is stored byte-for-byte.
 - **Not changed:** the game itself. All 107 tests pass.
 - From now on, an update counts as saved on GitHub only after it is committed and pushed.
+
+
+## Update 27 — Saturday, 17 October 2026 at 12:35 (Riyadh, UTC+03:00): rebuilt farmhouse interior
+
+The user asked to rebuild the house with more detail, keeping the gameplay in the game's pixel-art style.
+
+### The new house
+- Rebuilt the two-floor cutaway around a central staircase, with a landing, rails, layered timber walls, ceiling beams, plank floors, rugs and a foundation.
+- Four furnished bedrooms upstairs, with eight beds in total. Each has patterned blankets, pillows, bedside furniture, curtains and lamps. Different rooms have pictures, a calendar, plants, medicine supplies or a map.
+- A detailed kitchen downstairs: oven and range, pot, flue, sink and tap, worktops, cupboards, hanging utensils, herbs, a cutting board and pantry shelves.
+- The pantry's jars and water casks reflect the farm's existing food, pantry, meal and water supplies. The dining table has places for up to eight survivors, with plates, mugs, bread and a runner.
+- A separate common room has a sofa, armchair, radio cabinet, books, pictures, a coffee table, a clock and a stone fireplace with stored logs. Farm dogs rest near the fire.
+
+### Survivors and animation
+- Fed survivors sit at the table, hungry or waiting survivors use the common room, and recovering survivors appear in the upstairs beds with their existing health values.
+- Survivors away on expeditions or scouting trips do not appear inside the house. Rendering never changes the actual farm or survivor state.
+- Gentle eating movements, stove steam and fireplace effects follow the existing ambient-effects and reduced-motion settings. Balanced quality keeps the detailed rooms.
+- The static room artwork is cached; supplies, people and effects are drawn separately each frame.
+- Breakfast, Farm life, the kitchen and survivor profiles, Operations, and saved-farm continuation keep using the existing game controls. No save format or game balance changes.
+
+### Files and checks
+- Added `dist/interior-art.js`; connected it through `SceneRenderer.renderHouse()` in `dist/world-art.js`. The menu version reads Update 27.
+- Added four interior test groups and included them in `npm test`. All 111 test groups pass.
+- Added `interior-browser-test.mjs` for an isolated Chrome check. A fresh farm reached breakfast through the normal game flow; the house controls, Farm life, kitchen, survivor profiles, Operations, saving and continuing all passed.
+- Visually checked full eight-person dining, hungry and recovering layouts. Empty and away households, pantry contents, 720p, 1080p, 4K, Balanced quality and phone layout also passed, with no JavaScript page errors or farm-state changes.
+- Made a local backup before installation and preserved every byte of the earlier update history. Installed locally; this update has not been committed or pushed to GitHub.
+
+Save the current run and refresh the game window to load the rebuilt house. It appears at the next farmhouse breakfast.
+
+#Written by Codex
+
+
+## Update 28 — Saturday, 17 October 2026 at 12:40 (Riyadh, UTC+03:00): larger indoor characters
+
+The user pointed out that the characters looked too small beside the rebuilt farmhouse furniture.
+
+- Increased dining and common-room character scale from 1.15 to 1.85, making them about 61% larger. Their faces, clothes and silhouettes are easier to see and closer to the scale of the recovering survivors in the upstairs beds.
+- Enlarged and repositioned names, moved the common-room status caption, and adjusted eating-hand effects for the larger sprites.
+- Fixed the common-room draw order so the sofa front covers the seated row's legs while survivors on the foreground stools remain in front of it.
+- Checked eight-person dining, hungry and recovering households, travelers and empty households, the natural breakfast flow, Farm life, Operations, saving and continuing, Balanced quality, 720p, 1080p, 4K and phone controls in isolated Chrome. No JavaScript page errors or farm-state changes. All four existing interior test groups pass.
+- Backed up the changed files before local installation and preserved the earlier update log byte-for-byte. The menu version reads Update 28. This update has not been committed or pushed to GitHub.
+
+Save the current run and refresh the game window to load the larger indoor characters.
+
+#Written by Codex
+
+
+## Update 29 — Saturday, 17 October 2026 at 13:28 (Riyadh, UTC+03:00): a working farmhouse and thirteen indoor features
+
+The user approved the indoor plan: the original twelve ideas plus the memory wall, excluding the expedition packing station and tailoring corner. Claude's map work was delayed so Codex could make the necessary shared engine changes. This update focuses on the house and its systems.
+
+### Rooms you can use
+- At breakfast, **House & rooms →** opens the new room controls. Farm life has a **House** tab too. On desktop, clicking the stove, sink, pantry, bedrooms, medicine cabinet, common room, bookshelf, battery, memory wall or braced entrance opens the corresponding controls. The House button provides phone access.
+- Every improvement shows its current benefit, next level, scrap cost and availability. A builder installs one ordered house improvement at a time during daylight. Priority outdoor construction takes precedence. Progress is shown in House and the daytime Construction screen; cancellation refunds unused scrap.
+
+### The thirteen features
+1. **Stove:** levels use 4, 3 or 2 food for four meals. Small batches round fractional food costs up. Better burners, cookware and fittings appear when installed.
+2. **Pantry:** prepared-meal capacity grows from 16 to 24 to 32; preserved rations from 24 to 36 to 48.
+3. **Bedrooms:** assign and swap eight beds, reserved for travelers. Improved beds give fed residents an extra 3 or 6 morning health. Bed names and personal possessions are visible.
+4. **Common room:** better comfort gives fed residents 2 or 4 extra morning morale. The highest level also improves shared-breakfast bonds.
+5. **Medical cabinet:** spend one medicine on a chosen resident for up to 50, 65 or 80 health. Away or healthy survivors cannot consume a treatment.
+6. **Doors and shutters:** separate upgrade paths increase both maximum house health and fortification. Together, their highest levels provide **180 maximum HP and 20% damage protection**. Builder, workshop and purchased repairs respect the new maximum, as do the health display and repair buttons. Installation preserves the amount of existing damage while increasing current and maximum health.
+7. **Sink:** cooking uses one water per 2, 3 or 4 portions, rounded up. Breakfast drinking water remains separate.
+8. **Household breakfast button:** calculates missing portions for people currently at home, shows the real cost, and prepares them in one action. A four-meal batch button makes stove efficiency easy to use. Existing ration controls remain available.
+9. **Bookshelf:** start with the farming notebook. Completed expeditions provide appropriate manuals plus scouting. Fed residents can study once each morning for 2, 4 or 6 XP; saving and reloading do not reset the limit.
+10. **Emergency battery:** three levels hold 45, 90 or 135 seconds. A working generator charges it at half a second per active game second. Nighttime outages drain it and leave indoor shelter lights working. Outdoor lamps, the clinic at night and generator fuel rules still use generator power. Pausing and phase waiting freeze charging and draining.
+11. **Personal requests:** a resident may request a prepared meal, a blanket made from scrap, or a keepsake brought home by an expedition. Fulfilling it consumes the shown supplies, gives that person 6 morale, and adds a bedside possession. Completed requests stay completed after a reload.
+12. **Indoor routines:** survivors eat, talk, read, walk through the house and on the stairs, and rest in their assigned beds. Cooking and study actions have a visible response. These animations never spend extra resources or award extra XP or healing. Reduced motion and ambient settings are respected.
+13. **Memory wall:** the hall pinboard opens photographs and notes about residents, losses, harvests, survived hordes, expeditions, requests and improvements. The wall is paginated. Existing journals and expedition histories seed relevant memories and manuals for older farms.
+
+### Integration, prices and compatibility
+- New modules: `dist/house-systems.js`, `dist/house-ui.js`, `dist/house-art.js` and `dist/house.css`. `HOUSE_SYSTEMS.md` explains the rules and integration points for later map work.
+- The new `house` group in `dist/prices.json` controls every indoor upgrade price through the existing price loader and validation.
+- Existing version-2 colony saves gain a validated `house` section. Migration keeps existing resources, people and health, and does not replay an already-paid morning reward. Malformed new fields reject the load before replacing the active farm.
+- Fixed breakfast handling for away survivors: they no longer consume home breakfast, receive home recovery, lose morale for missing it, or appear in the upstairs recovery list.
+- The map geometry, fence layout, expedition destinations and outdoor artwork retain their existing layout. Shared health, repairs, power, arrival, expedition and save hooks support the new house features. The version line reads Update 29.
+
+### Checked and installed
+- All **128 test groups pass**, including 17 new house-system groups covering costs, atomic failure, migration, invalid saves, construction, fortification, all repair routes, bedrooms, once-per-morning rewards, travelers, medicine, study limits, battery behavior, requests, expedition rewards, memories and pure animation paths.
+- Isolated Chrome checks pass for a naturally reached breakfast, furniture clicks, upgrade ordering/cancellation, batch cooking, bed swaps, medicine, study, requests, memories, autosaves, Operations and phone controls. Full-house routines and advanced furnishings render without changing the farm, at 720p, 1080p, 4K and Balanced quality. No JavaScript page errors.
+- A local backup was made before installation; the full earlier update log was preserved byte-for-byte. The player’s browser and saves were not used by the tests. This update is installed locally and has not been committed or pushed to GitHub.
+
+Save the current run and refresh the game window. At breakfast, choose **House & rooms →**. Order an improvement, assign a builder, then begin the day to have it installed.
+
+#Written by Codex

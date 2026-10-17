@@ -2,6 +2,7 @@ import {EnhancedRenderer} from './graphics.js';
 import {LOOKS} from './renderer.js';
 import {BUILDINGS,FARMHOUSE} from './engine.js';
 import {FARM_BOUNDARY} from './perimeter.js';
+import {drawFarmhouseInterior} from './interior-art.js';
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const random=seed=>()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
@@ -9,6 +10,7 @@ const seedAt=(x,y)=>Math.abs(Math.round(x*73+y*139))>>>0;
 
 // Scene art is drawn from world geometry, so every moving subject and upgrade remains live.
 export class SceneRenderer extends EnhancedRenderer {
+ renderHouse(s,t){drawFarmhouseInterior(this,s,t);}
  paintWorld(g){
   super.paintWorld(g);
   // Recolor only the original flat grass swatches; buildings, roads, water and crops retain their materials.

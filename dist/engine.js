@@ -573,6 +573,7 @@ export class GameEngine {
     const hungry = [];
     const left = [];
     for (const person of [...s.people]) {
+      if (person.expeditionId || person.away > 0) continue;
       if ((s.food >= 1 || this.breakfastMealAvailable?.()) && s.water >= 1) {
         if (!this.consumeBreakfastMeal?.(person)) s.food--;
         s.water--;
@@ -588,7 +589,7 @@ export class GameEngine {
         hungry.push(person.name);
       }
     }
-    for (const person of s.people) Object.assign(person, { inside: true, panic: false, order: null, task: null, away: 0, x: HOUSE_DOOR.x, y: HOUSE_DOOR.y + 4 });
+    for (const person of s.people.filter(p => !p.expeditionId && !(p.away > 0))) Object.assign(person, { inside: true, panic: false, order: null, task: null, away: 0, x: HOUSE_DOOR.x, y: HOUSE_DOOR.y + 4 });
     for (const dog of s.dogs) Object.assign(dog, { hp: dog.maxHp, out: false });
     s.breakfast = { fed, hungry, left, water, wounded: s.people.filter(person => person.hp < person.maxHp * 0.6).map(person => person.name) };
   }
@@ -866,7 +867,7 @@ export class GameEngine {
       this.notice('Everyone is healthy.', true);
       return false;
     }
-    if (kind === 'repair' && this.s.farmHp >= 100) {
+    if (kind === 'repair' && this.s.farmHp >= (this.maxFarmHealth?.() ?? 100)) {
       this.notice('The farmhouse is already fully repaired.', true);
       return false;
     }
@@ -880,7 +881,7 @@ export class GameEngine {
     if (kind === 'seeds') this.s.seeds += 6;
     if (kind === 'heal') this.heal(person, 35);
     if (kind === 'repair') {
-      this.s.farmHp = Math.min(100, this.s.farmHp + 35);
+      this.s.farmHp = Math.min(this.maxFarmHealth?.() ?? 100, this.s.farmHp + 35);
       if (this.s.farmHp > 30) this.farmWarning = false;
     }
     this.emit('sound', { name: 'buy' });
@@ -1341,12 +1342,12 @@ export class GameEngine {
     }
     const gadgets = [...s.fences, ...s.traps];
     const fix = person.task?.fix;
-    const needed = fix === 'house' ? s.farmHp < 100 : !!fix && gadgets.includes(fix) && fix.hp < fix.maxHp;
+    const needed = fix === 'house' ? s.farmHp < (this.maxFarmHealth?.() ?? 100) : !!fix && gadgets.includes(fix) && fix.hp < fix.maxHp;
     if (!needed) {
       const center = gadget => ({ x: gadget.x + gadget.w / 2, y: gadget.y + gadget.h / 2 });
       const broken = gadgets.filter(gadget => gadget.hp < gadget.maxHp).sort((a, b) => distance(center(a), person) - distance(center(b), person))[0];
       if (broken) person.task = { fix: broken, x: broken.x + broken.w / 2, y: broken.y + broken.h + 14 };
-      else if (s.farmHp < 100) person.task = { fix: 'house', x: HOUSE_DOOR.x - 50, y: HOUSE_DOOR.y + 6 };
+      else if (s.farmHp < (this.maxFarmHealth?.() ?? 100)) person.task = { fix: 'house', x: HOUSE_DOOR.x - 50, y: HOUSE_DOOR.y + 6 };
       else if (fix) person.task = null;
       if (person.task?.fix) person.timer = 1.5;
     }
@@ -1366,7 +1367,7 @@ export class GameEngine {
     person.timer -= dt;
     if (person.timer > 0) return;
     if (house) {
-      s.farmHp = Math.min(100, s.farmHp + 3);
+      s.farmHp = Math.min(this.maxFarmHealth?.() ?? 100, s.farmHp + 3);
       this.floater(person.x, person.y - 34, '+3 farmhouse', '#b7d486');
       person.timer = 1.5;
     } else {
@@ -1607,7 +1608,8 @@ export class GameEngine {
       if (s.people.some(person => person.job === 'farmer')) this.notice('Fresh seeds! The farmers are back to work.', true);
     }
     if (this.shellAlarm && s.ammo > 0) this.shellAlarm = false;
-    const panicking = night && !s.lit && s.people.some(person => !person.away && !person.order && person.job !== 'defender');
+    const shelterLit = this.houseLit?.() ?? s.lit;
+    const panicking = night && !shelterLit && s.people.some(person => !person.away && !person.order && person.job !== 'defender');
     if (panicking && !this.panicWarned) {
       this.notice(this.level('generator') ? 'The lights are out! People are panicking outside!' : 'It is pitch dark! Without a generator, people panic outside!', true);
       this.emit('sound', { name: 'panic' });
@@ -1638,7 +1640,7 @@ export class GameEngine {
         this.defendWork(person, dt);
         continue;
       }
-      if (night && s.lit) {
+      if (night && shelterLit) {
         person.panic = false;
         person.bubble = '';
         if (person.inside) person.status = 'Sleeping in the farmhouse';
@@ -1715,6 +1717,7 @@ export class GameEngine {
     s.visitors = null;
     s.mode = s.promptReturn || 'playing';
     s.promptReturn = null;
+    this.observeHouse?.();
     return true;
   }
 
@@ -1896,11 +1899,11 @@ export class GameEngine {
       }
     }
     const repairEvery = this.stat('workshop', 'repairEvery');
-    if (repairEvery && s.farmHp < 100) {
+    if (repairEvery && s.farmHp < (this.maxFarmHealth?.() ?? 100)) {
       this.repairTimer += dt;
       if (this.repairTimer >= repairEvery) {
         this.repairTimer -= repairEvery;
-        s.farmHp = Math.min(100, s.farmHp + 1);
+        s.farmHp = Math.min(this.maxFarmHealth?.() ?? 100, s.farmHp + 1);
         if (s.farmHp > 30) this.farmWarning = false;
       }
     }
@@ -2100,6 +2103,7 @@ export class GameEngine {
       animals: this.animalCount(), survivors: s.people.length,
       totals: { kills: s.kills, harvested: s.harvested },
     });
+    this.observeHouse?.();
   }
 
   end(won) {
@@ -2196,7 +2200,8 @@ export class GameEngine {
       } else if (!prey && farmDistance < zombie.radius + 11) {
         zombie.angle = Math.atan2(house.y + house.h / 2 - zombie.y, house.x + house.w / 2 - zombie.x);
         if (zombie.attackCooldown <= 0) {
-          const smash = Math.min(s.farmHp, zombie.kind === 'brute' ? 5 : 3);
+          const rawDamage = zombie.kind === 'brute' ? 5 : 3;
+          const smash = Math.min(s.farmHp, this.houseDamage?.(rawDamage) ?? rawDamage);
           s.farmHp -= smash;
           s.today.farmDamage += smash;
           s.farmHurt = 0.3;

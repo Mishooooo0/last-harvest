@@ -2,6 +2,7 @@
 // The numbers in engine.js and colony.js stay as the built-in fallback: a missing price, or a file
 // with a mistake, simply leaves the built-in value in place.
 import {BUILDINGS,UPGRADES,GADGETS,FENCE,SHOP} from './engine.js';
+import {HOUSE_UPGRADES} from './house-systems.js';
 import './colony.js'; // adds the barn, clinic, radio, weapon blueprints and gate to the same tables
 
 const SHOP_ITEMS=['ammo','seeds','heal','repair','cow'];
@@ -13,6 +14,7 @@ const isPrice=v=>Number.isInteger(v)&&v>=0&&v<=100000;
 export function currentPrices(){
  const levels=b=>Object.fromEntries(b.levels.map((l,i)=>[`level ${i+1}`,l.cost]).slice(firstLevel(b)-1));
  return {
+  house:Object.fromEntries(Object.entries(HOUSE_UPGRADES).map(([id,b])=>[id,levels(b)])),
   shop:Object.fromEntries(SHOP_ITEMS.map(k=>[k,SHOP[k]])),
   buildings:Object.fromEntries(Object.entries(BUILDINGS).map(([id,b])=>[id,levels(b)])),
   upgrades:Object.fromEntries(Object.entries(UPGRADES).map(([id,u])=>[id,levels(u)])),
@@ -35,7 +37,8 @@ export function applyPrices(data){
    set(`${id} ${key}`,cost,v=>{item.levels[n-1].cost=v;});
   }
  };
- for(const key of Object.keys(data))if(!key.startsWith('_')&&!['shop','buildings','upgrades','defenses'].includes(key))warnings.push(`Unknown group "${key}". Use shop, buildings, upgrades or defenses.`);
+ for(const key of Object.keys(data))if(!key.startsWith('_')&&!['shop','buildings','upgrades','defenses','house'].includes(key))warnings.push(`Unknown group "${key}". Use shop, buildings, upgrades, defenses or house.`);
+ section('house',levelled(HOUSE_UPGRADES,'House upgrade'));
  section('shop',(id,value)=>{if(!SHOP_ITEMS.includes(id)){warnings.push(`Shop item "${id}" does not exist. Known: ${SHOP_ITEMS.join(', ')}.`);return;}set(`shop ${id}`,value,v=>{SHOP[id]=v;});});
  section('buildings',levelled(BUILDINGS,'Building'));
  section('upgrades',levelled(UPGRADES,'Upgrade'));

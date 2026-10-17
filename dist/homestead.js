@@ -1,3 +1,5 @@
+import {houseMealCap,housePantryCap,cookingCost} from './house-systems.js';
+
 // Farm life is optional: resources are spent only by an explicit kitchen or breeding order.
 export const HOMESTEAD = Object.freeze({
   mealCap: 16, pantryCap: 24, mealMorale: 3, bondMoraleCap: 2,
@@ -29,7 +31,7 @@ export function validHomestead(s) {
   if (s.missions.some(m => m.homesteadBonded !== undefined && typeof m.homesteadBonded !== 'boolean')) return false;
   const h = s.homestead;
   if (h === undefined) return true;
-  if (!object(h) || h.version !== 1 || !integer(h.meals, 0, HOMESTEAD.mealCap) || !integer(h.pantry, 0, HOMESTEAD.pantryCap)) return false;
+  if (!object(h) || h.version !== 1 || !integer(h.meals, 0, houseMealCap(s)) || !integer(h.pantry, 0, housePantryCap(s))) return false;
   if (!['lastBreakfastDay', 'lastDawnDay', 'lastMealDay'].every(k => integer(h[k], 0, s.day))) return false;
   if (!integer(h.totalMeals) || !integer(h.births) || !Array.isArray(h.lastMealIds) || h.lastMealIds.length > 8 || h.lastMealIds.some(id => !integer(id, 1)) || new Set(h.lastMealIds).size !== h.lastMealIds.length) return false;
   if (!Array.isArray(h.bonds) || h.bonds.length > 28) return false;
@@ -55,20 +57,21 @@ export const homesteadMethods = {
     const cowCapacity = normalCowCapacity + nurseryCapacity;
     const healthyCows = s.cows.filter(c => c.hp > 0 && c.hp >= c.maxHp * HOMESTEAD.healthyRatio).length;
     const action = (key, label, blocked = '') => {
-      const { yield: amount, ...cost } = HOMESTEAD.recipes[key];
+      const { yield: amount, ...baseCost } = HOMESTEAD.recipes[key];
+      const cost = key === 'cook' ? cookingCost(s, amount) : baseCost;
       const missing = Object.entries(cost).find(([resource, n]) => (resource === 'pantry' ? h.pantry : s[resource]) < n);
       const reason = !active(s) ? 'Continue the farm before placing an order.' : blocked || (missing ? `Needs ${missing[1]} ${missing[0]}.` : 'Ready');
       return { label, cost, yield: amount, available: reason === 'Ready', reason };
     };
     return {
-      meals: h.meals, mealCap: HOMESTEAD.mealCap, pantry: h.pantry, pantryCap: HOMESTEAD.pantryCap,
+      meals: h.meals, mealCap: houseMealCap(s), pantry: h.pantry, pantryCap: housePantryCap(s),
       food: s.food, water: s.water, hay: s.hay, scrap: s.scrap,
       cows: s.cows.length, normalCowCapacity, nurseryCapacity, cowCapacity, healthyCows,
       breeding: h.breeding ? { ...h.breeding, daysLeft: Math.max(0, h.breeding.dueDay - s.day), ready: s.day >= h.breeding.dueDay } : null,
       relationships: h.bonds.filter(b => s.people.some(p => p.id === b.a) && s.people.some(p => p.id === b.b)).map(b => ({ ...b, names: [b.a, b.b].map(id => s.people.find(p => p.id === id).name), label: relationshipLabel(b.score) })).sort((a, b) => b.score - a.score),
       actions: {
-        cook: action('cook', 'Cook 2 meals', h.meals + 2 > HOMESTEAD.mealCap ? 'The prepared-meal shelf is full.' : ''),
-        preserve: action('preserve', 'Preserve 3 rations', h.pantry + 3 > HOMESTEAD.pantryCap ? 'The preserved pantry is full.' : ''),
+        cook: action('cook', 'Cook 2 meals', h.meals + 2 > houseMealCap(s) ? 'The prepared-meal shelf is full.' : ''),
+        preserve: action('preserve', 'Preserve 3 rations', h.pantry + 3 > housePantryCap(s) ? 'The preserved pantry is full.' : ''),
         open: action('open', 'Open 3 rations', s.food + 3 > s.foodCap ? 'Make room for 3 food in ordinary storage.' : ''),
         breed: action('breed', 'Raise a new cow', !this.level('pasture') ? 'Build a pasture first.' : !this.level('barn') ? 'Upgrade the barn for hay and a nursery place.' : h.breeding ? 'The herd already has a breeding order.' : healthyCows < 2 ? 'Needs two cows with at least 70% health.' : s.cows.length >= cowCapacity ? 'The cattle stalls and nursery are full.' : ''),
       },
@@ -90,6 +93,7 @@ export const homesteadMethods = {
     let message;
     if (key === 'cook') {
       h.meals += action.yield;
+      this.noteHouseActivity('cooking');
       message = 'Two meals prepared for breakfast. Each replaces one food and gives +3 morale.';
     } else if (key === 'preserve') {
       h.pantry += action.yield;
@@ -162,6 +166,7 @@ export const homesteadMethods = {
     const team = this.s.people.filter(p => m.members.includes(p.id) && p.hp > 0);
     this.growHomesteadBonds(team.map(p => p.id), 2);
     for (const p of team) p.morale = Math.min(100, p.morale + this.homesteadBondMorale(p.id, team.map(q => q.id)));
+    this.houseExpedition(m);
   },
   homesteadDawn() {
     const s = this.s, h = s.homestead;
