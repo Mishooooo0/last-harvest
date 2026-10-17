@@ -4,6 +4,9 @@
 
 # Last Harvest — Updates
 
+**Where we stopped (latest, newest first):** Saturday 17 October 2026, 12:09 (Kuwait / Riyadh time, UTC+03:00)
+**State at that moment:** Update 26 (the new main menu), now also on GitHub as a private repository: https://github.com/Mishooooo0/last-harvest (see "Repository" at the bottom of this file). Next: the user tests; "the operation part" (a playable expedition) is still waiting.
+
 **Where we stopped (latest, newest first):** Friday 16 October 2026, 16:03 (Kuwait / Riyadh time, UTC+03:00)
 **State at that moment:** Update 26 (bottom of this file): a new main menu, a game-style menu over a living night scene of the farm, with a New farm screen that uses the opening's pictures. It builds on Codex's Updates 24 (the opening story) and 25 (the live pixel art). 107 tests pass, and Codex's two browser tests pass. Next: the user tests; "the operation part" (a playable expedition) is still waiting.
 
@@ -770,3 +773,21 @@ The user asked for a better main menu.
   - The layout fits at 1280×720, 800×450 and 375×812.
   - No console errors.
 - **Backup** of the previous version: `.backup/before-menu-2026-10-16T15-48`.
+
+## Repository — Saturday 17 October 2026, 12:09 (Riyadh, UTC+03:00): the game is on GitHub
+
+The user asked to make the game a repository and push it to GitHub, before any more changes.
+
+- **Where:** https://github.com/Mishooooo0/last-harvest, a **private** repository on the main branch. It can be made public later from the repository settings.
+- **First commit:** the game exactly as it stands after Update 26.
+- **Not in the repository:**
+  - `.backup/` (copies of the game made before each update; git keeps the history now);
+  - `evidence/` (screenshots written by the browser tests);
+  - `.openai/` (Codex's id for an OpenAI hosting project that was never published).
+  - All three are still in the game folder, untouched.
+- **New files:**
+  - `README.md`: how to play, change prices, run the tests, and what each file is.
+  - `.gitignore`: the three folders above.
+  - `.gitattributes`: git never converts line endings, so every file, including this log, is stored byte-for-byte.
+- **Not changed:** the game itself. All 107 tests pass.
+- From now on, an update counts as saved on GitHub only after it is committed and pushed.
