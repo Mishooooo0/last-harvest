@@ -4,6 +4,9 @@
 
 # Last Harvest — Updates
 
+**Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:23 (Kuwait / Riyadh time, UTC+03:00)
+**State at that moment:** Version 0.0.32 on GitHub. Today's full session report is at the bottom of this file: Codex's Updates 27–29 committed, then Update 30 (squad controls), Update 31 (playable expeditions) and Update 32 (the farmhouse from outside). 141 test groups pass; the balance bot keeps 8 of 12 farms. Next: the user play-tests.
+
 **Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:14 (Kuwait / Riyadh time, UTC+03:00)
 **State at that moment:** Update 32 (bottom of this file): the farmhouse from outside now matches Codex's rooms inside, with its lights, smoke, door and shutter upgrades, and damage. It follows Update 31 (playable expeditions) and Update 30 (squad controls). Next: the user tests the expeditions, the new controls and the house.
 
@@ -956,3 +959,49 @@ The user asked for the outside of the farmhouse to get the same care Codex gave 
 ### Files and checks
 - `dist/world-art.js`: the new `house()`, a `houseWindow()` helper and `houseLights()`; the live house now receives the farm state. `dist/graphics.js`: the night glow uses `houseLights()`.
 - All 141 test groups pass. Checked in the browser by day, at night with and without light, and damaged at 60 and 30 health with both upgrades. No console errors.
+
+
+## Session report — Saturday 17 October 2026, 14:23 (Riyadh, UTC+03:00): everything done today, start to finish
+
+The user asked for a full report of this session in this log. Updates 30, 31 and 32 have their own entries above; this one pulls the day together and records what those entries do not.
+
+### What happened, in order
+1. **The game was read in full** before anything changed: every rule module, the drawing, the screens and the tests.
+2. **Codex's work was found uncommitted.** Updates 27 and 28 (the farmhouse inside, larger indoor characters) were installed but not saved to GitHub. While the plan was being written, Codex installed **Update 29** (the house systems) in this same folder, between 13:09 and 13:28.
+   - All three were committed together as Codex's work (commit `05b57dc`).
+   - The first try caught only half of Update 29, because Codex was still writing it. It was corrected before anything was pushed.
+   - Codex's own entries above say "not committed or pushed". They now are.
+3. **The user's requests and choices:**
+   - The farmhouse should get the same care from outside as Codex gave it inside.
+   - Fighting was annoying, and in practice only one person could be commanded. The user chose **RTS-style controls**: drag a box to select, right-click to give orders.
+   - Expeditions should be played: the places leave the farm map, a trip takes the whole day, **five minutes on the site**, and the team is back at dusk. The farm cannot be controlled from the site, so jobs are set before leaving. Before leaving, the team takes a chosen number of weapons, shells and meds. Loot: seeds, scrap, weapons, meds, gasoline, survivors.
+   - "Seeds can be used during the run" was a misplaced note: seeds are ordinary loot. "Expedition guide" was only the feature's name, so it stays **Expedition** in the game.
+4. **Update 30, squad controls**, and **Update 31, playable expeditions**: commit `22717cd`.
+5. **Update 32, the farmhouse from outside**: commit `0169fd8`. It was first offered as a separate session; that session never delivered, so at the user's request it was done here.
+6. **Everything is on GitHub** (the private repository Mishooooo0/last-harvest). The game folder and GitHub match.
+
+### Where things stand
+- **Version 0.0.32**, Update 32.
+- **141 test groups pass** across ten suites: engine, upgrades, Update 15, graphics, homestead, perimeter, prices, interior, house and expeditions.
+- **The balance bot** keeps 8 of 12 farms alive for six nights, the agreed bar.
+- **Checked in the browser:**
+  - the new controls: box select, right-click attacks and attack-moves, Q and Ctrl+A;
+  - a whole expedition, from packing the truck to the dusk summary;
+  - the silent town with all four survivors;
+  - the house by day, at night and damaged.
+  - No console errors.
+
+### Worth knowing
+- **Codex and Claude both work in this folder.** If both run at the same time, they edit the same files. Before starting, look at `git status` and the bottom of this file, and commit by naming the files.
+- **prices.json:** Codex's Update 29 put each building price on its own line and added a `house` group for the indoor upgrades. Every price that was there before is unchanged.
+- **Expedition balance is a first guess.** The bot does not send expeditions, so loot, danger and the number of the dead on each site have not been tuned. They are in `PLACES` (dist/colony.js) and `SITE` (dist/expedition.js).
+- **Leaving for the silent town** pauses for about half a second while the site's paths are worked out.
+- **Codex's browser tests need Codex's own Playwright** and are not part of `npm test`. That covers the opening, world-art, interior and house browser tests and the world-art profile.
+- **Unused old code:** the old breakfast picture in dist/renderer.js (`renderHouse`) is no longer drawn since Update 27. It is left in place.
+
+### Next
+- The user play-tests:
+  - the squad controls on a horde night;
+  - an expedition to the abandoned farm;
+  - the farmhouse by day and by night.
+- After that, tune the expeditions from what the play-test shows.
