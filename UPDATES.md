@@ -4,6 +4,9 @@
 
 # Last Harvest — Updates
 
+**Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:14 (Kuwait / Riyadh time, UTC+03:00)
+**State at that moment:** Update 32 (bottom of this file): the farmhouse from outside now matches Codex's rooms inside, with its lights, smoke, door and shutter upgrades, and damage. It follows Update 31 (playable expeditions) and Update 30 (squad controls). Next: the user tests the expeditions, the new controls and the house.
+
 **Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:10 (Kuwait / Riyadh time, UTC+03:00)
 **State at that moment:** Update 31 (bottom of this file): expeditions are now played. The team leaves after breakfast with a packed truck, and you go with them to a site of their own for five minutes: check buildings, search, fight, and get home at dusk. Update 30 before it: squad controls (drag a box, right-click to give orders, Q for fighters). Codex's Updates 27–29 (the farmhouse inside and the house systems) are committed with them. The farmhouse outside, planned as the next update, is being done in a separate session. Next: the user tests the expeditions and the new controls.
 
@@ -933,3 +936,23 @@ The user's "operation part": expeditions are played, not watched. The places lea
 - **All 141 test groups pass.** The balance bot keeps 8 of 12 farms alive for 6 nights.
 - Checked in the browser: box select, right-click attacks and attack-moves, Q and Ctrl+A; a full expedition (packing, checking a building, fighting, searching, meds, heading home, the dusk summary); the silent town with all four survivors. No console errors. Drawing a site takes about 0.4 ms a frame; its simulation about 1.3 ms a step with 16 of the dead hunting.
 - **Not in this update:** the farmhouse outside, planned as the next update, is being done in a separate session.
+
+
+## Update 32 — Saturday 17 October 2026, 14:14 (Riyadh, UTC+03:00): the farmhouse from outside
+
+The user asked for the outside of the farmhouse to get the same care Codex gave the inside (Updates 27–28). The house keeps exactly the same footprint and door, so paths, collisions and saves are unchanged.
+
+### Matching the rooms inside
+- **Upstairs**, left to right: the West, Garden, East and Loft bedrooms, each window with curtains in that room's colour, and a narrow landing window over the stairs between them. The dormer window lights the stairs too.
+- **Downstairs:** two kitchen windows with cafe curtains and flower boxes on the left, the front door with a transom under a small porch roof on two posts, and the common room's wide window on the right.
+- **Behind the roof:** a stone chimney on the right for the common-room fireplace, and the kitchen stove's metal flue on the left. Both smoke gently (still smoke with reduced motion or ambient effects off).
+- **Details:** lap siding, corner boards, a band between the floors, a stone foundation, a gutter running down to a rain barrel, steps down to the yard, a woodpile for the fireplace and a washing line.
+
+### What it shows
+- **Night:** the windows glow and the porch lamp burns when the house has light (the generator, or Codex's emergency battery). In a blackout the windows go dark. The night glow follows the new windows.
+- **House upgrades (Update 29):** the shutters are weathered wood at first, painted with the first Window shutters upgrade and iron-strapped with the second; the Front door upgrades add iron straps and then a bar.
+- **Damage**, by health against the house's maximum: below 70% cracked boards and scratches on the door; below 40% boarded-up windows, a hanging shutter, holes in the siding, missing roof tiles and a cracked step.
+
+### Files and checks
+- `dist/world-art.js`: the new `house()`, a `houseWindow()` helper and `houseLights()`; the live house now receives the farm state. `dist/graphics.js`: the night glow uses `houseLights()`.
+- All 141 test groups pass. Checked in the browser by day, at night with and without light, and damaged at 60 and 30 health with both upgrades. No console errors.

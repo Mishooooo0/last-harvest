@@ -99,7 +99,7 @@ export class EnhancedRenderer extends ColonyRenderer{
    const v=this.view;g.fillStyle='#0d23452b';g.fillRect(v.x,v.y,W/v.scale,H/v.scale);g.globalCompositeOperation='screen';
    const pulse=this.reducedMotion?1:1+Math.sin(t*5.1)*.025;this.glow(g,653,463,105*pulse,'255,157,63',.32);
    if(s.lit&&s.buildings.generator){const lamps=LAMPS.slice(0,BUILDINGS.generator.levels[s.buildings.generator-1].lamps);for(const [x,y] of lamps)this.glow(g,x+7,y-22,88,'255,207,126',this.quality==='balanced'?.16:.25);}
-   const {x,y,w}=FARMHOUSE;for(const wx of [x+29,x+69,x+w-69,x+w-29]){this.glow(g,wx,y+112,28,'255,196,97',.28);this.rect(g,wx-7,y+107,12,14,'#ffdc7d22');}
+   const {x,y,w}=FARMHOUSE,windows=this.houseLights?this.houseLights(s):[x+29,x+69,x+w-69,x+w-29].map(wx=>[wx,y+112,28]);for(const [wx,wy,r] of windows)this.glow(g,wx,wy,r,'255,196,97',.28);
    for(const p of s.people)if(p.flash>0&&!p.inside&&!p.away)this.glow(g,p.x,p.y-10,65,'255,219,140',.45);
    g.globalCompositeOperation='source-over';
   }else{

@@ -2,6 +2,7 @@ import {EnhancedRenderer} from './graphics.js';
 import {LOOKS} from './renderer.js';
 import {BUILDINGS,FARMHOUSE} from './engine.js';
 import {FARM_BOUNDARY} from './perimeter.js';
+import {houseMaxHealth} from './house-systems.js';
 import {drawFarmhouseInterior} from './interior-art.js';
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -41,37 +42,99 @@ export class SceneRenderer extends EnhancedRenderer {
   this.rect(g,rx+2,y+17,rw-4,8,'#2a352a');this.rect(g,x-4,y+29,5,Math.max(2,h-30),'#d2b98b');this.rect(g,x+w-1,y+29,5,Math.max(2,h-30),'#ad986f');
  }
 
- house(g,live=false){
-  const {x,y,w,h}=FARMHOUSE,cx=x+w/2;
+ // The farmhouse from outside (Update 32) matches the rooms inside: four bedrooms upstairs with their own
+ // curtains and a landing window over the stairs; downstairs the kitchen with its stove flue on the left, the
+ // front door under a small porch, and the common room's wide window with the stone fireplace chimney on the right.
+ // It is drawn once into the background (no state) and live each frame on top, with its lights, smoke, the
+ // door and shutter upgrades, and damage. The footprint never changes.
+ house(g,live=false,s=null,t=0){
+  const {x,y,w,h}=FARMHOUSE,cx=x+w/2,R=(a,b,c,d,e)=>this.rect(g,a,b,c,d,e);
+  const night=!!s&&s.phase==='night',lit=!!s&&(s.lit||(s.house?.charge||0)>0);
+  const health=s?s.farmHp/Math.max(1,houseMaxHealth(s)):1,levels=s?.house?.levels||{},shutters=levels.shutters||1,door=levels.doors||1;
+  const glass=night?(lit?'warm':'dark'):'day',hurt=health<.7,wrecked=health<.4;
   if(!live)this.poly(g,[[x+8,y+h-6],[x+w,y+h-6],[x+w+32,y+h+21],[x+27,y+h+21]],'#233e2c55');
-  this.rect(g,x,y,w,h,'#c1a878');this.rect(g,x+w-15,y,15,h,'#a18c64');
-  for(let yy=y+34;yy<y+h-6;yy+=7){this.rect(g,x+3,yy,w-6,1,'#816f4c');this.rect(g,x+4,yy+1,w-23,1,'#dfc99a');}
-  this.rect(g,x-3,y+h-8,w+6,9,'#6d6a54');this.rect(g,x-3,y+h-8,w+6,2,'#aca585');
-  for(let xx=x+4;xx<x+w;xx+=16)this.rect(g,xx,y+h-6,1,6,'#4e5542');
-  this.rect(g,x+w-57,y-62,17,44,'#796c58');this.rect(g,x+w-60,y-65,23,5,'#aea086');
-  for(let yy=y-55;yy<y-21;yy+=8){this.rect(g,x+w-57,yy,17,1,'#514e42');this.rect(g,x+w-50+(yy%3),yy,1,8,'#5d5a49');}
+  // Behind the roof: the stone chimney of the common-room fireplace, and the kitchen stove's metal flue.
+  const chim=x+w-46;R(chim,y-74,24,80,'#8a8577');
+  for(let yy=y-72,row=0;yy<y+4;yy+=6,row++)for(let xx=chim-(row%2)*5;xx<chim+24;xx+=10){const sx=Math.max(chim,xx);R(sx,yy,Math.min(9,chim+24-sx),5,(row+Math.floor(xx/10))%3?'#9b9686':'#7c786b');}
+  R(chim-3,y-80,30,6,'#5f5b50');R(chim-3,y-80,30,2,'#8d897b');R(chim+3,y-86,6,6,'#4f4c43');R(chim+15,y-86,6,6,'#4f4c43');
+  R(x+30,y-34,5,40,'#6f7672');R(x+31,y-34,2,40,'#a7aea8');R(x+27,y-38,11,5,'#3b3f40');R(x+29,y-41,7,3,'#55595a');
+  // Walls: lap siding, corner boards, a band between the floors, and a gutter running down to the rain barrel.
+  R(x,y,w,h,'#c1a878');R(x+w-14,y,14,h,'#a18c64');
+  for(let yy=y+28;yy<y+h-12;yy+=7){R(x+3,yy,w-6,1,'#816f4c');R(x+4,yy+1,w-20,1,'#dfc99a');}
+  R(x,y+26,5,h-36,'#dcc89a');R(x+w-6,y+26,6,h-36,'#8f7b57');
+  R(x,y+86,w,5,'#8f7650');R(x,y+86,w,1,'#d8bf8c');R(x,y+90,w,1,'#5e4f38');
+  R(x-3,y+24,3,h-40,'#6f7672');R(x-3,y+24,1,h-40,'#a7aea8');
+  R(x-3,y+h-12,w+6,12,'#6c6a5b');for(let row=0;row<2;row++)for(let xx=x-3+(row?7:0);xx<x+w+3;xx+=14)R(xx,y+h-11+row*6,Math.min(12,x+w+3-xx),5,(xx/14+row)%3<1?'#8d8a77':'#7b796a');
+  // The roof with its tiles and eave, and the dormer whose window lights the stairs.
   const roofTop=y-59;this.poly(g,[[x-15,y+22],[cx,roofTop-2],[x+w+15,y+22],[x+w+15,y+38],[x-15,y+38]],'#2d3d32');
   this.poly(g,[[x-13,y+21],[cx,roofTop],[x+w+13,y+21]],'#526252');
   g.save();g.beginPath();g.moveTo(x-13,y+21);g.lineTo(cx,roofTop);g.lineTo(x+w+13,y+21);g.closePath();g.clip();
   this.poly(g,[[x-14,roofTop],[cx,roofTop],[cx,y+22],[x-14,y+22]],'#a2b59422');
-  for(let yy=roofTop+6,row=0;yy<y+22;yy+=6,row++){
-   this.rect(g,x-14,yy,w+28,1,'#2f453b');this.rect(g,x-14,yy+1,w+28,1,'#a4b59422');
-   for(let xx=x-14+(row%2)*9;xx<x+w+14;xx+=18)this.rect(g,xx,yy,1,6,'#273c324d');
-  }g.restore();this.rect(g,x-14,y+21,w+28,5,'#a66c48');this.rect(g,x-14,y+21,w+28,1,'#d7ac72');
-  this.rect(g,x-8,y+27,w+16,5,'#314234');
-  this.poly(g,[[cx-22,y-18],[cx,y-38],[cx+22,y-18]],'#374b3d');this.rect(g,cx-15,y-18,30,22,'#867957');this.window(g,cx-10,y-16,20,16);
-  for(const wx of [x+19,x+59,x+w-81,x+w-41])for(const wy of [y+47,y+99])this.window(g,wx,wy,22,25);
-  const dx=cx-16;this.rect(g,dx-4,y+h-43,40,43,'#6b583d');this.rect(g,dx-1,y+h-41,34,40,'#92704a');this.rect(g,dx+4,y+h-36,24,15,'#ceb982');this.rect(g,dx+8,y+h-34,16,11,'#ead38b');this.rect(g,dx+4,y+h-17,24,12,'#73583e');this.rect(g,dx+26,y+h-19,3,3,'#e1c278');
-  this.rect(g,x-9,y+h-9,w+18,10,'#8e7653');this.rect(g,x-10,y+h-10,w+20,3,'#c9ad7c');
-  for(let xx=x-4;xx<x+w;xx+=10)this.rect(g,xx,y+h-6,1,7,'#645a40');
-  for(const px of [x+2,x+w-7]){this.rect(g,px,y+h-40,5,39,'#bda576');this.rect(g,px,y+h-40,2,39,'#ead2a1');this.rect(g,px-3,y+h-42,11,4,'#d7bd8c');}
-  this.rect(g,dx-11,y+h+1,54,5,'#aaa083');this.rect(g,dx-14,y+h+6,60,5,'#77795e');this.rect(g,dx-16,y+h+11,64,4,'#585f48');
-  for(const px of [x+13,x+w-25]){this.rect(g,px,y+h-9,14,9,'#78533d');this.rect(g,px-2,y+h-12,18,4,'#b98b60');for(let j=0;j<4;j++){this.rect(g,px+j*3,y+h-17-(j%2)*3,3,6,'#536c3e');this.rect(g,px+j*3,y+h-20-(j%2)*3,3,3,j%2?'#e4ba6d':'#bd7356');}}
+  for(let yy=roofTop+6,row=0;yy<y+22;yy+=6,row++){R(x-14,yy,w+28,1,'#2f453b');R(x-14,yy+1,w+28,1,'#a4b59422');for(let xx=x-14+(row%2)*9;xx<x+w+14;xx+=18)R(xx,yy,1,6,'#273c324d');}
+  if(wrecked)for(const [mx,my] of [[x+40,y+4],[x+150,y-6],[x+122,y+12]]){R(mx,my,14,6,'#1e2a22');R(mx+2,my+6,10,2,'#3d2c22');}
+  g.restore();R(x-14,y+21,w+28,5,'#a66c48');R(x-14,y+21,w+28,1,'#d7ac72');R(x-8,y+26,w+16,3,'#314234');
+  this.poly(g,[[cx-24,y-16],[cx,y-40],[cx+24,y-16]],'#374b3d');this.poly(g,[[cx-20,y-17],[cx,y-36],[cx+20,y-17]],'#4b5e4d');R(cx-15,y-17,30,22,'#867957');
+  this.houseWindow(g,cx-9,y-14,18,15,'#7e8468',{glass});
+  // Upstairs, left to right: the West and Garden rooms, the landing over the stairs, the East and Loft rooms.
+  const up=y+40,down=y+98;
+  [[x+12,'#8c6f5c'],[x+54,'#617d73'],[x+128,'#78815b'],[x+170,'#8a7080']].forEach(([wx,curtain],i)=>this.houseWindow(g,wx,up,22,28,curtain,{glass,shutters,boarded:wrecked&&i===2,hanging:wrecked&&i===0}));
+  this.houseWindow(g,cx-7,up+2,14,24,'#7e8468',{glass});
+  // Downstairs: two kitchen windows with cafe curtains and flower boxes, then the common room's wide window.
+  for(const wx of [x+9,x+50]){this.houseWindow(g,wx,down,22,24,'#b99a6a',{glass,shutters,cafe:true,boarded:wrecked&&wx===x+9});R(wx-3,down+31,28,7,'#78533d');R(wx-4,down+30,30,2,'#b98b60');for(let j=0;j<6;j++){R(wx-1+j*4,down+24-(j%2)*3,3,7,'#536c3e');R(wx-1+j*4,down+23-(j%2)*3,3,3,j%2?'#e4ba6d':'#bd7356');}}
+  this.houseWindow(g,x+140,down,56,26,'#6f826c',{glass,wide:true,boarded:wrecked});
+  // The front door with a transom, under a small porch roof on two posts; Front door upgrades add iron straps and a bar.
+  R(cx-16,y+h-58,32,48,'#5b4632');R(cx-14,y+h-56,28,6,glass==='warm'?'#f2d58c':glass==='dark'?'#2e3a44':'#9fb4ae');R(cx-14,y+h-49,28,39,'#7a5634');
+  for(const [px,py,ph] of [[-11,-45,14],[2,-45,14],[-11,-27,13],[2,-27,13]])R(cx+px,y+h+py,9,ph,'#694a2d');R(cx+8,y+h-31,3,3,'#e1c278');
+  if(door>=2)for(const ry of [y+h-42,y+h-20]){R(cx-14,ry,28,3,'#4a4f4f');R(cx-12,ry+1,2,1,'#9aa29c');R(cx+10,ry+1,2,1,'#9aa29c');}
+  if(door>=3){R(cx-16,y+h-33,32,4,'#3b3f40');R(cx-16,y+h-33,32,1,'#7b8380');}
+  if(hurt){R(cx-12,y+h-24,2,10,'#3a2a1c');R(cx+5,y+h-38,2,7,'#3a2a1c');R(cx-8,y+h-41,6,1,'#3a2a1c');}
+  R(x+80,y+h-66,52,7,'#4b5e4d');R(x+80,y+h-66,52,2,'#7c8f72');R(x+82,y+h-59,48,3,'#2d3d32');
+  if(wrecked){R(x+112,y+h-66,10,7,'#1e2a22');R(x+114,y+h-59,6,2,'#3d2c22');}
+  for(const px of [x+84,x+122]){R(px,y+h-59,5,49,'#bda576');R(px,y+h-59,2,49,'#ead2a1');}
+  R(x+80,y+h-12,52,6,'#8e7653');R(x+80,y+h-12,52,2,'#c9ad7c');
+  R(cx-22,y+h-2,44,5,'#aaa083');R(cx-25,y+h+3,50,5,'#8d8a70');R(cx-28,y+h+8,56,5,'#77795e');R(cx-22,y+h-2,44,1,'#d0c7a6');
+  if(wrecked)R(cx+6,y+h+3,12,2,'#4d4a3c');
+  // The porch lamp burns at night when the house has power or battery light.
+  R(x+128,y+h-50,7,9,'#3b3f40');R(x+129,y+h-48,5,6,night&&lit?'#ffe7a5':'#7c7d6c');R(x+130,y+h-53,3,3,'#3b3f40');
+  // Beside the house: the rain barrel, a woodpile for the fireplace, and a washing line.
+  R(x-18,y+h-32,15,26,'#5c6350');R(x-19,y+h-28,17,3,'#343e34');R(x-19,y+h-14,17,3,'#343e34');R(x-17,y+h-33,13,2,'#7c876d');R(x-16,y+h-32,10,2,'#527974');
+  for(let row=0;row<3;row++)for(let k=0;k<4-row;k++){const lx=x+w+8+k*8+row*4,ly=y+104-row*7;R(lx,ly,8,7,'#6b4f36');R(lx+2,ly+2,4,3,'#b08a5c');R(lx+3,ly+3,2,1,'#8a6a45');}
+  R(x+w+4,y+111,38,3,'#4d3b29');
+  const sway=live&&!this.reducedMotion&&this.ambient!==false?Math.sin(t*1.6):0,lx0=x-62,lx1=x-30,ly=y+28;
+  for(const px of [lx0,lx1]){R(px,ly,3,34,'#7a6441');R(px-3,ly,9,2,'#9c8156');}
+  g.strokeStyle='#d8d2b8';g.lineWidth=1;g.beginPath();g.moveTo(lx0+2,ly+2);g.quadraticCurveTo((lx0+lx1)/2,ly+6,lx1+1,ly+2);g.stroke();
+  [['#a35d4a',lx0+5],['#d9d2bc',lx0+13],['#5d7a9b',lx0+21]].forEach(([c,clx],i)=>{const off=Math.round(sway*(1+i%2));R(clx+off,ly+4,6,9,c);R(clx+off,ly+4,6,1,'#00000033');});
+  // Damage shows on the outside: cracked boards first, then holes in the siding.
+  if(hurt)for(const [dx,dy,dw] of [[20,77,14],[120,79,12],[178,135,12],[36,139,8],[86,52,8]]){R(x+dx,y+dy,dw,2,'#3a2a1c');R(x+dx+2,y+dy+2,dw-4,1,'#5b4632');}
+  if(wrecked)for(const [dx,dy] of [[40,75],[150,131]]){R(x+dx,y+dy,12,9,'#1e1a14');R(x+dx-2,y+dy-1,4,3,'#6b5a3c');R(x+dx+10,y+dy+7,4,3,'#6b5a3c');}
+  // Smoke from the fireplace chimney, and a thinner wisp from the stove flue.
+  if(live&&s){const calm=this.reducedMotion||this.ambient===false;
+   for(const [sx,sy,n,size] of [[chim+12,y-88,4,1],[x+32,y-42,2,.6]])for(let i=0;i<n;i++){const p=calm?.3+i*.18:(t*.28+i/n)%1,r=(3+p*9)*size;g.fillStyle=`rgba(206,202,190,${(1-p)*.38})`;g.fillRect(Math.round(sx+p*16*size-r/2+(calm?0:Math.sin(t+i)*2)),Math.round(sy-p*44*size-r/2),Math.round(r),Math.round(r));}}
  }
- window(g,x,y,w,h){this.rect(g,x-3,y-2,w+6,h+5,'#d2b785');this.rect(g,x,y,w,h,'#443f2e');this.rect(g,x+3,y+3,w-6,h-6,'#d7bd76');this.rect(g,x+4,y+4,Math.max(3,w/2-5),Math.max(3,h/2-4),'#f2d991');this.rect(g,x+w/2-1,y+2,2,h-4,'#796c48');this.rect(g,x+2,y+h/2,w-4,2,'#796c48');this.rect(g,x-5,y,3,h,'#657449');this.rect(g,x+w+2,y,3,h,'#526141');this.rect(g,x-4,y+h+2,w+8,2,'#e1c795');}
+ // Where the farmhouse windows glow at night: nowhere when the house has no light.
+ houseLights(s){
+  if(!(s.lit||(s.house?.charge||0)>0))return [];
+  const {x,y,h}=FARMHOUSE;
+  return [[x+23,y+54,26],[x+65,y+54,26],[x+105,y+54,22],[x+139,y+54,26],[x+181,y+54,26],[x+20,y+110,26],[x+61,y+110,26],[x+168,y+111,40],[x+131,y+h-46,46]];
+ }
+ // A farmhouse window: frame, glass by day or lamplight by night, curtains in the room's colour, and the Window
+ // shutters upgrade (wooden shutters, then iron-strapped). Damage boards a window up or leaves a shutter hanging.
+ houseWindow(g,x,y,w,h,curtain,o={}){
+  const R=(a,b,c,d,e)=>this.rect(g,a,b,c,d,e),glass=o.glass||'day';
+  const wood=o.shutters>=2?['#4f6346','#6d8461']:['#7a6a4c','#9c8a64'];if(o.shutters&&!o.wide)for(const sx of [x-8,x+w+2]){if(o.hanging&&sx===x-8)continue;R(sx,y-2,6,h+4,wood[0]);R(sx+1,y-1,1,h+2,wood[1]);R(sx,y+h/2-1,6,2,'#3c4b36');if(o.shutters>=3){R(sx,y+3,6,2,'#4a4f4f');R(sx,y+h-4,6,2,'#4a4f4f');R(sx+3,y+3,1,1,'#9aa29c');}}
+  R(x-3,y-3,w+6,h+6,'#e0cfa2');R(x-1,y-1,w+2,h+2,'#5a4a33');
+  R(x,y,w,h,glass==='warm'?'#e8b45f':glass==='dark'?'#26323c':'#8aa39d');R(x,y,w,Math.ceil(h*.45),glass==='warm'?'#f6d58c':glass==='dark'?'#2e3a44':'#c4d4cb');
+  if(glass==='day')R(x+2,y+2,3,Math.max(3,h/2-3),'#eef3ea88');
+  if(o.cafe){R(x,y+h/2,w,h/2,curtain);for(let xx=x;xx<x+w;xx+=4)R(xx,y+h/2+((xx-x)/4%2?2:0),2,2,'#efe4c4');}
+  else{const side=o.wide?8:5;R(x,y,w,3,curtain);R(x,y,side,h,curtain);R(x+w-side,y,side,h,curtain);R(x+side-2,y+h*.6,3,2,'#e8d7a4');R(x+w-side-1,y+h*.6,3,2,'#e8d7a4');}
+  R(x+w/2-1,y,2,h,'#6b5a3c');R(x,y+h/2-1,w,2,'#6b5a3c');if(o.wide){R(x+w/4-1,y,2,h,'#6b5a3c');R(x+w*3/4-1,y,2,h,'#6b5a3c');}
+  R(x-4,y+h+3,w+8,3,'#d7bc83');R(x-3,y+h+6,w+6,1,'#7a6646');
+  if(o.hanging&&o.shutters){g.save();g.translate(x-6,y+2);g.rotate(.5);R(0,0,6,h,wood[0]);R(1,1,1,h-2,wood[1]);g.restore();}
+  if(o.boarded){this.poly(g,[[x-4,y+2],[x+w+4,y+h-6],[x+w+4,y+h-1],[x-4,y+7]],'#9c7a4c');this.poly(g,[[x-4,y+h-6],[x+w+4,y+1],[x+w+4,y+6],[x-4,y+h-1]],'#8b6c40');for(const [nx,ny] of [[x-2,y+3],[x+w+1,y+h-4],[x-2,y+h-4],[x+w+1,y+3]])R(nx,ny,2,2,'#3b3f40');}
+ }
 
  landmarkItems(g,s,t){return [
-  {y:FARMHOUSE.y+FARMHOUSE.h,draw:()=>this.house(g,true)},
+  {y:FARMHOUSE.y+FARMHOUSE.h,draw:()=>this.house(g,true,s,t)},
   {y:240,draw:()=>{this.building(g,125,110,160,130,'#a85843','#6b3a30',false);this.rect(g,173,170,62,70,'#59432e');this.rect(g,177,176,54,57,'#302b22');this.rect(g,181,214,46,19,'#8c7440');this.rect(g,185,206,22,9,'#b89955');this.rect(g,174,171,60,5,'#ccb58a');this.rect(g,188,126,25,24,'#293d30');this.rect(g,199,126,4,24,'#c0ab7c');this.rect(g,188,137,25,3,'#c0ab7c');this.barnDoors(g,s.barnOpen||0);if(s.buildings.barn)this.drawBuilding(g,'barn',s,t);}}
  ];}
 
