@@ -66,7 +66,7 @@
             <div id="night-banner" class="night-banner" hidden aria-live="polite"><strong id="night-banner-title"></strong><span id="night-banner-text"></span></div>
             <div class="hud-left">
             <div class="hud-panel hud-clock">
-              <div class="clock-top"><div class="day-number"><strong id="day-label">DAY 01</strong><span id="mode-label" class="mode-label" hidden>ENDLESS</span></div><span id="hud-weather" class="clock-weather">CLEAR</span></div>
+              <div class="clock-top"><div class="day-number"><strong id="day-label">DAY 01</strong><span id="mode-label" class="mode-label" hidden>ENDLESS</span><span id="cheat-label" class="mode-label cheat-label" hidden title="Cheats were used on this farm">CHEATS</span></div><span id="hud-weather" class="clock-weather">CLEAR</span></div>
               <div class="phase-block"><div class="phase-top"><span><svg class="icon"><use href="#i-sun"/></svg><span id="phase-label">DAYLIGHT</span></span><span id="phase-timer">2:00</span></div><div class="meter phase-meter"><span id="phase-fill" style="width:100%"></span></div></div>
               <p id="horde-line" class="horde-line"></p>
               <button id="phase-confirm" class="phase-confirm" type="button" title="Key N">End the day early <kbd>N</kbd></button>
@@ -135,7 +135,7 @@
                 </div>
               </section>
               <div class="title-corner"><button id="title-sound" class="corner-button" type="button" aria-pressed="true">Sound: on</button><button id="title-fullscreen" class="corner-button" type="button">Fullscreen</button></div>
-              <p id="prices-warning" class="prices-warning" role="alert" hidden></p><p class="title-foot">Version 0.0.33 / DEMO v1 · UPDATE 33 · SPEED-TEST BUILD</p>
+              <p id="prices-warning" class="prices-warning" role="alert" hidden></p><p class="title-foot">Version 0.0.34 / DEMO v1 · UPDATE 34 · SPEED-TEST BUILD</p>
             </div>
           </div>
           <div id="state-overlay" class="state-overlay" hidden><div class="state-card"><span class="state-sprout"><svg class="icon"><use href="#i-sprout"/></svg></span><p id="state-eyebrow" class="eyebrow">A MOMENT TO BREATHE</p><h2 id="state-title">Taking a breather.</h2><p id="state-description">Your homestead will be right here.</p><button id="state-action" class="primary-button" type="button">Keep surviving</button><button id="state-endless" class="secondary-button" type="button" hidden>Keep going in endless mode →</button><button id="state-restart" class="text-button" type="button">Start a new farm</button></div></div>
@@ -160,6 +160,9 @@
     <section class="settings-section" aria-labelledby="settings-ui-title"><h3 id="settings-ui-title">Interface</h3>
       <label class="settings-toggle"><input type="checkbox" id="set-hud-open"><span><strong>Start with the HUD panels open</strong><small>Otherwise your people, the commands and the objectives start folded. Click a panel's ▲ tab to open or fold it.</small></span></label>
       <button id="set-fullscreen" class="secondary-button" type="button">Toggle fullscreen</button></section>
+    <section class="settings-section" aria-labelledby="settings-cheats-title"><h3 id="settings-cheats-title">Cheats</h3>
+      <label class="settings-toggle"><input type="checkbox" id="set-cheats"><span><strong>Cheat menu</strong><small>Shows cheats and cheat codes for the farm you are playing. A farm that uses them is marked with CHEATS and does not set an endless record.</small></span></label>
+      <div id="cheat-menu" class="cheat-menu" hidden></div></section>
     <footer class="settings-foot"><p class="settings-note">Settings are kept in this browser.</p><button id="settings-done" class="primary-button" type="button">Done</button></footer>
   </div></dialog>
   <dialog id="pack-dialog" class="pack-dialog" aria-labelledby="pack-title"><div class="pack-modal"><p class="eyebrow">A NEW FARM · DAY 1</p><h2 id="pack-title">Your starting pack</h2><p class="pack-sub">Everything the four of you have on the first morning. Spend it well.</p><div id="pack-grid" class="pack-grid"></div><div class="pack-foot"><p>Next: decide who does what on the first day.</p><button id="pack-continue" class="primary-button" type="button">Plan the first day →</button></div></div></dialog>

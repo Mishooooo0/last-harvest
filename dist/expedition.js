@@ -257,7 +257,7 @@ export class SiteRun {
 
   // ===== People: fighting, walking, searching =====
   weapon(u) { return COMBAT[u.p.tool || 'fists']; }
-  canShoot(u) { return u.p.tool === 'gun' && this.ammo > 0; }
+  canShoot(u) { return u.p.tool === 'gun' && (this.ammo > 0 || !!this.game.cheats?.ammo); }
   fight(u) {
     if (u.cooldown > 0 || u.p.fireMode === 'hold') return false;
     const gun = u.p.tool === 'gun', weapon = this.weapon(u);
@@ -267,8 +267,8 @@ export class SiteRun {
     if (!target) return false;
     u.angle = Math.atan2(target.y - u.y, target.x - u.x);
     if (gun) {
-      if (this.ammo <= 0) { u.cooldown = .5; if (!this.dryWarned) { this.dryWarned = true; this.say('The team is out of shells!'); } return false; }
-      this.ammo--; u.flash = .08;
+      if (this.ammo <= 0 && !this.game.cheats?.ammo) { u.cooldown = .5; if (!this.dryWarned) { this.dryWarned = true; this.say('The team is out of shells!'); } return false; }
+      if (!this.game.cheats?.ammo) this.ammo--; u.flash = .08;
       this.shots.push({ x1: u.x + Math.cos(u.angle) * 14, y1: u.y - 10 + Math.sin(u.angle) * 14, x2: target.x, y2: target.y - 10, life: .1 });
       this.game.emit('sound', { site: true, name: 'rifle' });
       this.noise(u);
@@ -400,6 +400,7 @@ export class SiteRun {
     this.moveBody(z, (dx * z.speed * slow + sx) * dt, (dy * z.speed * slow + sy) * dt, z.radius);
   }
   hurtUnit(u, damage, angle) {
+    if (this.game.cheats?.unhurt) return;
     const p = u.p; p.hp = Math.max(0, p.hp - damage); u.hurt = .35; u.hurtCooldown = .8; this.hurt += damage;
     const today = this.game.s.today; if (today) { today.hits++; today.damage += damage; }
     p.morale = Math.max(0, (p.morale ?? 70) - 2);

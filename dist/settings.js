@@ -1,7 +1,7 @@
 // Settings window (Update 22): graphics, sound and interface choices, kept in this browser.
 // The graphics quality picker is Codex's control from graphics.js; it is placed in #settings-graphics.
 const KEY='last-harvest-settings';
-export const DEFAULT_SETTINGS=Object.freeze({shake:true,ambient:true,sound:true,volume:60,hudOpen:false});
+export const DEFAULT_SETTINGS=Object.freeze({shake:true,ambient:true,sound:true,volume:60,hudOpen:false,cheats:false});
 
 export function loadSettings(){
  try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');return {...DEFAULT_SETTINGS,...(saved&&typeof saved==='object'?saved:{})};}

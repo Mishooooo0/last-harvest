@@ -1,5 +1,6 @@
 import {ensurePerimeter,validPerimeter,perimeterMethods,GATE_INSIDE,GATE_OUTSIDE} from './perimeter.js';
 import {SITE,SiteRun,createSite,ensureExpeditions,validExpeditions} from './expedition.js';
+import {installCheats} from './cheats.js';
 import {ensureHomestead,validHomestead,homesteadMethods} from './homestead.js';
 import {ensureHouse,validHouse,houseMethods} from './house-systems.js';
 import {ensureFarmSystems,farmMethods,validFarmSystems} from './farm-systems.js';
@@ -174,3 +175,5 @@ export class ColonyEngine extends GameEngine{
 }
 
 Object.assign(ColonyEngine.prototype,farmMethods,homesteadMethods,perimeterMethods,houseMethods);
+// Cheats (Update 34) wrap the finished rules, so they go last.
+installCheats(ColonyEngine,{places:PLACES});

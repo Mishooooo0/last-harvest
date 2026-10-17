@@ -4,6 +4,9 @@
 
 # Last Harvest — Updates
 
+**Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:40 (Kuwait / Riyadh time, UTC+03:00)
+**State at that moment:** Update 34 (bottom of this file): a cheat menu in Settings, with its own on/off toggle and cheat codes. Before it, Update 33 put farm saves in the game folder's saves/ subfolder and added starting-kit.json. Next: the user opens the game once (their saved farms move into saves/), then play-tests.
+
 **Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:34 (Kuwait / Riyadh time, UTC+03:00)
 **State at that moment:** Update 33 (bottom of this file): farm saves are now files in the game folder's saves/ subfolder (GitHub ignores it), and dist/starting-kit.json sets what every new farm starts with. The game server was restarted with the new code. Next: the user opens the game once so their saved farms move from the browser into saves/, then play-tests.
 
@@ -1054,3 +1057,34 @@ The user asked where saves go (they were inside Chrome's own storage), then aske
   - All 152 test groups pass, and the balance bot keeps 8 of 12 farms.
   - In the browser, on a second test server with a throwaway folder, so the real `saves/` stays empty until the user's own browser moves its farms in: a new farm autosaved to `auto.json` and saved to `manual-1.json`; after a reload, Continue and the Saves screen read them back and the farm loaded. Nothing went into browser storage. No console errors.
 - Found while testing: two quick saves to the same slot could finish out of order, and could clash over the server's temporary file. Saves to one slot now go one after another, and each write gets its own temporary file. A test saves eight times in a row and checks the last one wins.
+
+
+## Update 34 — Saturday 17 October 2026, 14:40 (Riyadh, UTC+03:00): a cheat menu in Settings
+
+The user asked for a cheat code menu inside the settings, with a toggle.
+
+### How it works
+- **Settings → Cheats → Cheat menu.** It is off at first. Switching it on shows the menu; switching it off hides it and turns every always-on cheat off.
+- **Always on** (checkboxes, each with its own code):
+  - **Nobody gets hurt** `IRONSKIN`: no damage to your people, on the farm or on expeditions;
+  - **Unbreakable farmhouse** `FORTRESS`: the dead cannot damage the house;
+  - **Endless shells** `BOTTOMLESS`: shotguns fire without using up shells, on the farm and on expeditions;
+  - **Instant building** `QUICKHANDS`: buildings and defenses are finished the moment they are ordered.
+- **Right now** (buttons, each with its own code):
+  - **Supplies:** +500 scrap `MOTHERLODE`, +100 shells `LOCKNLOAD`, +30 seeds `GREENTHUMB`, fill food and water `FULLBELLY`, +10 meds `FIRSTAID`, +10 gasoline `GASUP`;
+  - **Help:** heal everyone `HEALALL`, repair the farmhouse `FIXHOUSE`, clear the dead `CLEARDEAD` (on the farm, or on the site), finish all construction `FINISHIT`;
+  - **More:** a survivor joins `NEWFACE` (if there is a bed), reveal every expedition place `ROADMAP`.
+- **Typing a code:** the code box takes any of these. Upper or lower case and spaces don't matter. An always-on code switches its cheat on, or off again.
+- The menu and the always-on cheats are remembered in this browser's settings, like the other settings.
+- **A farm that uses cheats is marked:** a **CHEATS** tag next to the day. The mark stays in its saves, and it does not set an endless record.
+
+### Files and checks
+- **New:** `dist/cheats.js` (the cheats; they wrap the game's rules, so with cheats off nothing plays differently), `dist/cheats-ui.js` (the menu), `cheats-test.mjs` (8 test groups, in `npm test`).
+- **Changed:**
+  - `dist/colony.js` (installs the cheats last);
+  - `dist/expedition.js` (no hurt and endless shells on sites);
+  - `dist/index.html` (the Cheats section and the CHEATS tag);
+  - `dist/settings.js`, `dist/main.js`, `dist/hud.css`, `README.md`.
+- **Checks:**
+  - All 160 test groups pass.
+  - In the browser, on the throwaway test server: switched the menu on, used +500 scrap, typed "iron skin" and ticked Endless shells. The CHEATS tag appeared and scrap went from 50 to 550. Switching the menu off cleared the always-on cheats. No console errors.

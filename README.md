@@ -11,6 +11,10 @@ This is the browser prototype, used to test ideas quickly. The rules live in pla
 
 Farm saves are files in the `saves/` folder next to this README, written by the game server. Git ignores that folder, so farms never go to GitHub. Copy it to keep a backup.
 
+## Cheats
+
+Settings → Cheats → switch on the **Cheat menu**. It has always-on cheats (nobody gets hurt, an unbreakable farmhouse, endless shells, instant building), one-off cheats (scrap, shells, seeds, food and water, meds, gasoline, healing, repairs, clearing the dead, finishing construction, a new survivor, revealing every expedition place) and a box for typing their codes. A farm that uses them is marked CHEATS and does not set an endless record.
+
 ## Change the balance
 
 - **Prices:** edit `dist/prices.json`, save, and reload the game. A mistake in the file falls back to the built-in prices and is shown on the title screen.
@@ -19,7 +23,7 @@ Farm saves are files in the `saves/` folder next to this README, written by the 
 
 ## Tests
 
-- `npm test` runs the rule tests (engine, upgrades, farm systems, graphics, homestead, perimeter, prices, interior, house, expeditions, starting kit, save files).
+- `npm test` runs the rule tests (engine, upgrades, farm systems, graphics, homestead, perimeter, prices, interior, house, expeditions, starting kit, save files, cheats).
 - `opening-browser-test.mjs` and `world-art-browser-test.mjs` drive a real Chrome with Playwright.
 
 ## Layout
