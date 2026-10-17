@@ -220,7 +220,7 @@ const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const random = (min, max) => min + Math.random() * (max - min);
 
-function circleHitsRect(x, y, radius, rect) {
+export function circleHitsRect(x, y, radius, rect) {
   return Math.hypot(x - clamp(x, rect.x, rect.x + rect.w), y - clamp(y, rect.y, rect.y + rect.h)) < radius;
 }
 
@@ -313,7 +313,7 @@ function cornerGraph(radius, obstacles) {
 }
 
 // A tiny visibility graph gives everyone a reliable way around the farm buildings.
-function nextWaypoint(from, to, radius, obstacles) {
+export function nextWaypoint(from, to, radius, obstacles) {
   if (clearPath(from, to, radius, obstacles)) return to;
   const { nodes, links } = cornerGraph(radius, obstacles);
   const costs = nodes.map(node => clearPath(from, node, radius, obstacles) ? distance(from, node) : Infinity);

@@ -215,7 +215,6 @@ test('shared meals grow only home survivors bonds once per morning and morale st
 test('completed team expeditions grow trust once and retain that guard in saves', () => {
   const g = fresh(); g.s.food = 10; g.s.water = 10;
   const m = g.beginExpedition('farm', [1, 2]);
-  m.choice = 'return'; m.roll = 1;
   g.finishExpedition(m);
   assert.equal(g.s.homestead.bonds.length, 1);
   assert.equal(g.s.homestead.bonds[0].score, 2);

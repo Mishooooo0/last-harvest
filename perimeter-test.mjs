@@ -44,18 +44,14 @@ test('closed boundary sections block zombies until they are smashed', () => {
   assert.ok(section.hp < hp || !g.s.fences.includes(section), 'A zombie pressing on the boundary damages it');
 });
 
-test('the scouting gate opens for a passing team and closes again behind it', () => {
+test('the scouting gate opens for a passing scout and closes again behind them', () => {
   const g = fresh(), gate = ring(g).find(f => f.kind === 'gate');
-  g.s.food = 10; g.s.water = 10;
-  const m = g.beginExpedition('farm', [g.s.people[0].id]);
-  assert.ok(m.id, 'The expedition leaves');
-  const route = expeditionRoute(m.origin, { x: -650, y: 650 });
-  assert.deepEqual([route[1], route[2]], [GATE_INSIDE, GATE_OUTSIDE], 'Every route passes the scouting gate');
+  g.setJob(g.s.people[0].id, 'scout');
   let opened = false;
-  for (let i = 0; i < 60 * 30 && !opened; i++) { g.update(1 / 60); opened ||= gate.open; }
-  assert.ok(opened, 'The gate opened while the team passed');
+  for (let i = 0; i < 60 * 40 && !opened; i++) { g.update(1 / 60); opened ||= gate.open; }
+  assert.ok(opened, 'The gate opened while the scout passed');
   tick(g, 12);
-  assert.equal(gate.open, false, 'It closes once the team is through');
+  assert.equal(gate.open, false, 'It closes once the scout is through');
   assert.ok(g.walls.includes(gate), 'A closed gate blocks zombies again');
   assert.ok(g.setGate(gate.id, true));
   tick(g, 2);
@@ -63,6 +59,14 @@ test('the scouting gate opens for a passing team and closes again behind it', ()
   g.setGate(gate.id, false);
   tick(g, 1);
   assert.equal(gate.open, false);
+});
+
+test('a returning scout walks back in through the scouting gate', () => {
+  const g = fresh(), p = g.s.people[0];
+  Object.assign(p, { x: GATE_OUTSIDE.x, y: GATE_OUTSIDE.y + 40, gateReturn: 1 });
+  tick(g, 6);
+  assert.equal(p.gateReturn, 0, 'Back through the gate');
+  assert.ok(inside(p), 'Inside the boundary');
 });
 
 test('route positions follow the path through the gate', () => {

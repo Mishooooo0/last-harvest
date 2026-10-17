@@ -1,5 +1,7 @@
 import {BUILDINGS,JOBS,TOOLS,STARTING_PACK} from './engine.js';
 import {PLACES} from './colony.js';
+import {SITE} from './expedition.js';
+import {placeLoot} from './expedition-ui.js';
 import {LOOKS} from './renderer.js';
 
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -13,12 +15,12 @@ const JOB_ZONES=[
  {job:'medic',name:'Clinic',icon:'i-cross'},
  {job:'rest',name:'Resting',icon:'i-house'},
 ];
-const LOOT={food:'food',seeds:'seeds',scrap:'scrap',gas:'gasoline',meds:'meds',water:'water',component:'radio part'};
+
 
 // The starting pack (shown once per new farm) and the Operations board, where the leader decides
 // who works which job and who goes on an expedition. The board opens every morning after breakfast,
 // on the first day after the pack, and any time by daylight with O.
-export function installOperations({game,notice,sync,focusGame,beep}){
+export function installOperations({game,notice,sync,focusGame,beep,packTruck}){
  const $=id=>document.getElementById(id);
  const board=$('ops-dialog'),pack=$('pack-dialog');
  let plan=new Map(),context='midday',picked=null,drag=null,packDone=null,resumeAfter=false;
@@ -49,14 +51,14 @@ export function installOperations({game,notice,sync,focusGame,beep}){
  $('routine-auto').addEventListener('change',e=>game.s.routines.auto=e.target.checked);
  const zoneOf=p=>p.expeditionId?'away':`job:${p.job}`;
  const teamFor=place=>[...plan].filter(([,z])=>z===`place:${place}`).map(([id])=>game.s.people.find(p=>p.id===id)).filter(Boolean);
- function risk(placeId,team){const place=PLACES[placeId],bonus=game.s.expeditionBonus&&(!game.s.expeditionBonus.place||game.s.expeditionBonus.place===placeId)?game.s.expeditionBonus.risk:0;if(!team.length)return Math.min(.8,place.risk+bonus);const skill=team.reduce((t,p)=>t+game.skill(p,'scouting'),0),armed=team.some(p=>p.tool==='gun'||plan.get(p.id)==='job:defender');return bonus+Math.max(.03,Math.min(.5,place.risk-skill*.02-(armed?.08:0)-(team.some(p=>p.traits?.scout>1)?.03:0)-(team.some(p=>p.specialty==='scouting')?.05:0)));}
+
  function zoneState(key){const s=game.s;
   if(key==='away')return {locked:true};
   if(key.startsWith('job:')){const job=key.slice(4);if(job==='medic'&&!game.level('clinic'))return {disabled:'Build a clinic first.'};return {};}
   const id=key.slice(6),busy=s.missions.find(m=>m.stage!=='done');
   if(!s.discoveries[id])return {disabled:'Not found yet. Scouts and expeditions discover it.'};
   if(busy)return {disabled:`A team is already out (${PLACES[busy.place].name}).`};
-  if(context==='midday'&&s.phase!=='day')return {disabled:'Expeditions leave by daylight.'};
+  if(context==='midday')return {disabled:'Teams leave after breakfast. Plan an expedition in the morning board.'};
   return {};}
  function jobInfo(job,count){const s=game.s;
   if(job==='farmer')return [`${s.plots.length} plots · ${s.seeds} seeds · ${game.toolTotal('scythe')} scythes`,!s.seeds?'No seeds: buy some in Supplies.':''];
@@ -74,7 +76,7 @@ export function installOperations({game,notice,sync,focusGame,beep}){
   $('ops-cancel').textContent=context==='morning'?'Back to breakfast':context==='start'?'Skip for now':'Cancel';
   $('ops-stores').innerHTML=[['FOOD',`${s.food}/${s.foodCap}`],['WATER',`${s.water}/${s.waterCap}`],['SCRAP',s.scrap],['SHELLS',s.ammo],['SEEDS',s.seeds],['GAS',s.gas.toFixed(1)]].map(([k,v])=>`<span>${k}<strong>${v}</strong></span>`).join('');
   $('ops-farm').innerHTML=JOB_ZONES.filter(z=>JOBS[z.job]).map(z=>{const key=`job:${z.job}`,st=zoneState(key),[info,warn]=jobInfo(z.job,count(key));return `<div class="ops-zone${st.disabled?' disabled':''}" data-zone="${key}" tabindex="0" role="button" aria-label="${z.name}"><div class="zone-head">${icon(z.icon)}<strong>${z.name}</strong><small>${JOBS[z.job].toUpperCase()}</small></div><p class="zone-info">${st.disabled||info}</p><div class="zone-people">${people.filter(p=>plan.get(p.id)===key).map(chip).join('')}</div><p class="zone-warn">${warn}</p></div>`;}).join('')+(people.some(p=>p.expeditionId)?`<div class="ops-zone busy" data-zone="away"><div class="zone-head">${icon('i-flag')}<strong>Out on an expedition</strong></div><p class="zone-info">${(()=>{const m=s.missions.find(m=>m.stage!=='done');return m?`${PLACES[m.place].name} · ${m.stage==='decision'?'awaiting your decision':`back in about ${Math.ceil(Math.max(0,m.remaining)+(m.stage==='travel'?PLACES[m.place].time*.55:0))}s`}`:'';})()}</p><div class="zone-people">${people.filter(p=>plan.get(p.id)==='away').map(chip).join('')}</div></div>`:'');
-  $('ops-away').innerHTML=Object.entries(PLACES).map(([id,place])=>{const key=`place:${id}`,st=zoneState(key),team=teamFor(id),n=team.length,loot=Object.keys(LOOT).filter(k=>place[k]).map(k=>LOOT[k]).join(', '),short=n&&(s.food<n||s.water<n);return `<div class="ops-zone${st.disabled?' disabled':''}" data-zone="${key}" tabindex="0" role="button" aria-label="${place.name}"><div class="zone-head">${icon('i-flag')}<strong>${s.discoveries[id]?place.name:'Unknown place'}</strong><small>${Math.round(risk(id,team)*100)}% RISK</small></div><p class="zone-info">${st.disabled||`${place.time}s out · ${Math.ceil(place.time*.55)}s back · ${loot} · ${Math.ceil(place.time*1.55)}s travel + decision time; ${Math.ceil(place.time*1.55)> (context==='morning'?120:game.forecast().daylight)?'returns after sunset':'can return before sunset if you decide promptly'}${s.expeditionBonus&&(!s.expeditionBonus.place||s.expeditionBonus.place===id)?' · marked cache bonus':''}`}</p><div class="zone-people">${team.map(chip).join('')}</div><p class="zone-warn">${short?`Needs ${n} food + ${n} water to pack (you have ${s.food} + ${s.water}).`:team.some(p=>p.hp<p.maxHp*.35)?'Too hurt to travel: heal them first.':''}</p></div>`;}).join('');
+  $('ops-away').innerHTML=Object.entries(PLACES).map(([id,place])=>{const key=`place:${id}`,st=zoneState(key),team=teamFor(id),n=team.length,short=n&&(s.food<n||s.water<n);return `<div class="ops-zone${st.disabled?' disabled':''}" data-zone="${key}" tabindex="0" role="button" aria-label="${place.name}"><div class="zone-head">${icon('i-flag')}<strong>${s.discoveries[id]?place.name:'Unknown place'}</strong><small>${s.discoveries[id]?`DANGER: ${place.danger.toUpperCase()}`:"NOT FOUND YET"}</small></div><p class="zone-info">${st.disabled||`${place.description} Likely: ${placeLoot(place)}. Takes the whole day: ${SITE.length/60} minutes on the site, home at dusk.${(s.siteVisits?.[id]||0)?` Visited ${s.siteVisits[id]}× · less is left each time.`:''}${s.expeditionBonus&&(!s.expeditionBonus.place||s.expeditionBonus.place===id)?' · a marked cache is waiting':''}`}</p><div class="zone-people">${team.map(chip).join('')}</div><p class="zone-warn">${short?`Needs ${n} food + ${n} water to pack (you have ${s.food} + ${s.water}).`:team.some(p=>p.hp<p.maxHp*.35)?'Too hurt to travel: heal them first.':''}</p></div>`;}).join('');
   const f=game.forecast(),packed=[...plan.values()].filter(z=>z.startsWith('place:')).length;f.foodShort=Math.max(0,f.food+packed-s.food);f.waterShort=Math.max(0,f.water+packed-s.water);forecast.innerHTML='<strong>NEXT BREAKFAST</strong> '+f.food+' food + '+f.water+' water · '+(f.foodShort||f.waterShort?'Short: '+f.foodShort+' food, '+f.waterShort+' water':'Rations covered')+(packed?' (after packing '+packed+' expedition rations)':'')+'<br><strong>DEFENSE</strong> '+f.guns+' guns ('+f.freeGuns+' available) · '+s.ammo+' shells · fuel for '+f.nights.toFixed(1)+' nights';$('routine-auto').checked=s.routines.auto;
   const changes=people.filter(p=>plan.get(p.id)!==zoneOf(p)).length;$('ops-message').classList.toggle('ok',!!changes);if(!$('ops-message').dataset.error)$('ops-message').textContent=changes?`${changes} ${changes===1?'change':'changes'} planned.`:'';}
  function openBoard(kind='midday'){const s=game.s;if(board.open||pack.open)return false;if(kind==='midday'&&!['playing','paused'].includes(s.mode))return false;context=kind;resumeAfter=kind==='start'||s.mode==='playing';picked=null;plan=new Map(s.people.map(p=>[p.id,zoneOf(p)]));if(kind==='morning'&&s.routines.auto)for(const p of s.people){const job=s.routines.day[p.id];if(!p.expeditionId&&JOBS[job]&&(job!=='medic'||game.level('clinic')))plan.set(p.id,'job:'+job);}$('ops-message').dataset.error='';$('ops-message').textContent='';if(s.mode==='playing')game.pause();render();board.showModal();return true;}
@@ -83,10 +85,12 @@ export function installOperations({game,notice,sync,focusGame,beep}){
  function confirm(){const s=game.s,teams={};for(const [id,z] of plan)if(z.startsWith('place:'))(teams[z.slice(6)]||=[]).push(id);const places=Object.keys(teams);
   if(places.length>1)return message('Only one expedition can be out at a time. Send one team.');
   if(places.length){const team=teamFor(places[0]),n=team.length;if(s.food<n||s.water<n)return message(`The team needs ${n} food and ${n} water to pack. Bring fewer people, or stock up first.`);if(team.some(p=>p.hp<p.maxHp*.35))return message(`${team.filter(p=>p.hp<p.maxHp*.35).map(p=>p.name).join(', ')} is too hurt to travel.`);}
-  for(const [id,z] of plan)if(z.startsWith('job:')){const p=s.people.find(p=>p.id===id);if(p&&p.job!==z.slice(4))game.setJob(id,z.slice(4));}
-  if(context==='morning')game.startDay();
-  if(places.length){const result=game.beginExpedition(places[0],teams[places[0]]);if(result?.error)notice(result.error);}
-  board.close();if(resumeAfter&&game.s.mode==='paused')game.resume();focusGame();sync();}
+  const launch=kit=>{for(const [id,z] of plan)if(z.startsWith('job:')){const p=s.people.find(p=>p.id===id);if(p&&p.job!==z.slice(4))game.setJob(id,z.slice(4));}
+   if(context==='morning')game.startDay();
+   if(places.length){const result=game.beginExpedition(places[0],teams[places[0]],kit);if(result?.error){notice(result.error);}}
+   board.close();if(resumeAfter&&game.s.mode==='paused')game.resume();focusGame();sync();};
+  if(places.length&&packTruck){packTruck({place:places[0],ids:teams[places[0]],day:context==='morning'?s.day+1:s.day,onLeave:kit=>{launch(kit);return null;}});return;}
+  launch();}
  $('ops-confirm').addEventListener('click',confirm);
  $('ops-cancel').addEventListener('click',()=>board.close());
  board.addEventListener('close',()=>{drag?.ghost?.remove();drag=null;if(resumeAfter&&game.s.mode==='paused'&&!document.querySelector('dialog[open]'))game.resume();sync();});

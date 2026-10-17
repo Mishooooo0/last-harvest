@@ -1,7 +1,9 @@
 import {installOpening} from './opening.js';
 import {BUILDINGS,UPGRADES,GADGETS,PANTRY_SIZE,WATER_CAP,DAWN_SUPPLIES,MEAL_COST,JOBS,MAX_PEOPLE,TOOLS,WORLD,FARM_CENTER,FARMHOUSE,SHOP} from './engine.js';
 import {LOOKS,W,H,atBreakfast} from './renderer.js';
-import {ColonyEngine as GameEngine} from './colony.js';
+import {ColonyEngine as GameEngine,PLACES} from './colony.js';
+import {drawSite,siteView} from './site-art.js';
+import {installExpeditionUI} from './expedition-ui.js';
 import {SceneRenderer as Renderer} from './world-art.js';
 import {installGraphicsControls} from './graphics.js';
 import {installColonyUI} from './colony-ui.js';
@@ -11,7 +13,7 @@ import {loadPrices} from './prices.js';
 import {createMenuScene,stepMenuScene,menuView,installMainMenu} from './menu.js';
 // Prices come from prices.json before anything reads them. Problems are listed on the title screen.
 const priceReport=await loadPrices();
-let colonyUI=null,ops=null;
+let colonyUI=null,ops=null,expUI=null,gameRef=null;
 
 const $=id=>document.getElementById(id);
 if(priceReport.warnings.length){console.warn('prices.json:\n'+priceReport.warnings.join('\n'));const w=$('prices-warning'),shown=priceReport.warnings.slice(0,3);w.innerHTML=`<strong>prices.json</strong> ${shown.map(x=>`<span>${x.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'})[c])}</span>`).join('')}${priceReport.warnings.length>3?`<span>…and ${priceReport.warnings.length-3} more (see the browser console).</span>`:''}`;w.hidden=false;}
@@ -60,10 +62,10 @@ function beep(name){if(!soundOn||!audio||!master)return;const now=performance.no
 function unlockAudio(){if(!audio){try{audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=settings.volume/100;master.connect(audio.destination);}catch{}}audio?.resume().catch(()=>{});}
 function notice(text){if(!text)return;const msg=$('build-message');if(msg&&$('build-dialog').open){msg.textContent=text;msg.classList.remove('flash');void msg.offsetWidth;msg.classList.add('flash');}$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),3500);}
 
-const game=new GameEngine(e=>{if(e.type==='sound')beep(e.name);if(e.type==='notice'||e.type==='phase')notice(e.text);if(e.type==='phase'&&e.name==='night')banner(e.horde?'THE HORDE':'A QUIET NIGHT',e.horde?`${e.count} zombies are coming out of the woods`:`${e.count} stragglers wander in`,e.horde);if(e.type==='night-cleared'&&e.horde)beep('win');if(e.type==='night-cleared')banner(e.horde?'HORDE BROKEN':'NIGHT\'S END',e.horde?'The farm held. Greet the dawn when you are ready.':'Greet the dawn when you are ready.',false);});
+const game=new GameEngine(e=>{const away=!!gameRef?.run&&!e.site;if(e.type==='sound'&&!away)beep(e.name);if(e.type==='notice'&&away)expUI?.radio(e.text);else if(e.type==='notice'||e.type==='phase')notice(e.text);if(e.type==='expedition-home')expeditionHome(e.summary);if(e.type==='phase'&&e.name==='night')banner(e.horde?'THE HORDE':'A QUIET NIGHT',e.horde?`${e.count} zombies are coming out of the woods`:`${e.count} stragglers wander in`,e.horde);if(e.type==='night-cleared'&&e.horde)beep('win');if(e.type==='night-cleared')banner(e.horde?'HORDE BROKEN':'NIGHT\'S END',e.horde?'The farm held. Greet the dawn when you are ready.':'Greet the dawn when you are ready.',false);});
 // A big announcement across the map for hordes and the end of a night.
 let bannerTimer;function banner(title,line,danger){const el=$('night-banner');if(!el)return;text('night-banner-title',title);text('night-banner-text',line);el.classList.toggle('danger',!!danger);el.hidden=false;el.classList.remove('show');void el.offsetWidth;el.classList.add('show');clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>{el.hidden=true;},3600);}
-game.confirmPhases=true;
+gameRef=game;game.confirmPhases=true;
 const canvas=$('game'),renderer=new Renderer(canvas);
 const listNames=names=>names.length<2?names.join(''):`${names.slice(0,-1).join(', ')} and ${names.at(-1)}`;
 const text=(id,value)=>{const el=$(id);if(el&&el.textContent!==String(value))el.textContent=value;};
@@ -88,9 +90,10 @@ $('ops-btn').addEventListener('click',()=>{unlockAudio();if(!ops.openBoard('midd
 
 // ===== The camera: you look down on the farm as its leader. WASD to pan, scroll to zoom. =====
 const camera={cx:FARM_CENTER.x+140,cy:FARM_CENTER.y+40,zoom:1};
-function view(){const k=camera.zoom,w=W/k,h=H/k;camera.cx=Math.max(WORLD.left+w/2,Math.min(WORLD.right-w/2,camera.cx));camera.cy=Math.max(WORLD.top+h/2,Math.min(WORLD.bottom-h/2,camera.cy));return {x:Math.round(camera.cx-w/2),y:Math.round(camera.cy-h/2),scale:k};}
+const siteCamera={cx:0,cy:0,zoom:1},cam=()=>game.run?siteCamera:camera;
+function view(){if(game.run)return siteView(game.run,siteCamera);const k=camera.zoom,w=W/k,h=H/k;camera.cx=Math.max(WORLD.left+w/2,Math.min(WORLD.right-w/2,camera.cx));camera.cy=Math.max(WORLD.top+h/2,Math.min(WORLD.bottom-h/2,camera.cy));return {x:Math.round(camera.cx-w/2),y:Math.round(camera.cy-h/2),scale:k};}
 const toWorld=(px,py)=>{const v=renderer.view;return {x:v.x+px/v.scale,y:v.y+py/v.scale};};
-function lookAt(x,y){camera.cx=x;camera.cy=y;}
+function lookAt(x,y){const c=cam();c.cx=x;c.cy=y;}
 
 // ===== Selection and orders =====
 const selected=new Set();
@@ -98,75 +101,96 @@ const pointer={x:W/2,y:H/2,over:false,down:false,button:0,startX:0,startY:0,drag
 let placing=null,vertical=false,hover={},pendingAssign=null;
 function selectOnly(ids){selected.clear();ids.forEach(id=>selected.add(id));if(ids.length)beep('select');syncSelection();}
 function toggleSelect(id){selected.has(id)?selected.delete(id):selected.add(id);beep('select');syncSelection();}
-function cleanSelection(){for(const id of [...selected])if(!game.s.people.some(p=>p.id===id))selected.delete(id);}
+function cleanSelection(){const ids=new Set((game.run?game.run.alive:game.s.people).map(p=>p.id));for(const id of [...selected])if(!ids.has(id))selected.delete(id);}
 function commandAt(at,queued=false){
  if(!selected.size)return false;
+ if(game.run){const reply=game.run.command([...selected],at.x,at.y);if(!reply)return false;beep('order');notice(reply.text);return true;}
  const reply=colonyUI?colonyUI.command(at,queued):game.command([...selected],at.x,at.y);
  if(!reply)return false;
  if(reply.type==='lot'){pendingAssign=[...selected];openBuild(reply.lot);return true;}
  beep('order');notice(reply.text);return true;
 }
-// A left click selects a person, sends the selected people, places a defense, or opens a building.
-function clickAt(px,py,shift){
+// A left click selects a person, places a defense, opens a lot, or clears the selection. Orders are right-clicks.
+function clickAt(px,py,shift,touch=false){
  const at=toWorld(px,py),s=game.s;
+ if(game.run){const u=game.run.unitAt(at.x,at.y);if(u){shift?toggleSelect(u.id):selectOnly([u.id]);return;}if(touch&&selected.size){commandAt(at,shift);return;}if(!shift&&selected.size)selectOnly([]);return;}
  if(placing){game.placeGadget(placing,at.x,at.y,vertical);return;}
  const person=game.personAt(at.x,at.y);
  if(person){shift?toggleSelect(person.id):selectOnly([person.id]);return;}
- if(selected.size){commandAt(at,shift);return;}
+ // A phone has no right button, so a tap gives the selected people their order.
+ if(touch&&selected.size){commandAt(at,shift);return;}
  const lot=game.lotAt(at.x,at.y);
  if(lot&&(BUILDINGS[lot].card||!(BUILDINGS[lot].solid===false&&s.buildings[lot]))){openBuild(lot);return;}
+ if(!shift&&selected.size)selectOnly([]);
 }
-function boxSelect(box){
+function boxSelect(box,add){
  const a=toWorld(Math.min(box.x0,box.x1),Math.min(box.y0,box.y1)),b=toWorld(Math.max(box.x0,box.x1),Math.max(box.y0,box.y1));
- const ids=game.s.people.filter(p=>!p.inside&&p.away<=0&&p.x>=a.x&&p.x<=b.x&&p.y-12>=a.y&&p.y-12<=b.y).map(p=>p.id);
- if(ids.length)selectOnly(ids);
+ const ids=(game.run?game.run.alive:game.s.people.filter(outside)).filter(p=>p.x>=a.x&&p.x<=b.x&&p.y-12>=a.y&&p.y-12<=b.y).map(p=>p.id);
+ if(!add){selectOnly(ids);return;}
+ ids.forEach(id=>selected.add(id));if(ids.length)beep('select');syncSelection();
 }
-// Hold and drag moves the map (left or middle button, or a finger); Shift-drag selects a group; a short press is a click.
-function onMinimap(px,py,clamp){const m=renderer.miniRect;if(!m||!live())return false;if(clamp){px=Math.max(m.x,Math.min(m.x+m.w,px));py=Math.max(m.y,Math.min(m.y+m.h,py));}else if(px<m.x||px>m.x+m.w||py<m.y||py>m.y+m.h)return false;lookAt(WORLD.left+(px-m.x)/m.k,WORLD.top+(py-m.y)/m.k);return true;}
+// Q selects the fighters (defenders and anyone with a shotgun); Ctrl+A selects everyone outside.
+const outside=p=>!p.inside&&p.away<=0;
+function selectFighters(){if(game.run){const ids=game.run.alive.filter(u=>u.p.tool).map(u=>u.id);if(!ids.length){notice('Nobody on the team is armed.');return;}selectOnly(ids);return;}const ids=game.s.people.filter(p=>outside(p)&&(p.job==='defender'||p.tool==='gun')).map(p=>p.id);if(!ids.length){notice('No fighters outside. Give someone the Defender job in Operations.');return;}selectOnly(ids);}
+function selectEveryone(){selectOnly((game.run?game.run.alive:game.s.people.filter(outside)).map(p=>p.id));}
+// Left-drag draws a selection box (Shift adds to it); right- or middle-drag moves the map, and so does a finger.
+// A short left press is a click; a short right press sends the selected people.
+function dragKind(){if(pointer.button!==0||pointer.touch)return 'pan';if(placing==='fence')return 'fence';return placing?'pan':'box';}
+function onMinimap(px,py,clamp){const m=renderer.miniRect;if(!m||!live())return false;if(clamp){px=Math.max(m.x,Math.min(m.x+m.w,px));py=Math.max(m.y,Math.min(m.y+m.h,py));}else if(px<m.x||px>m.x+m.w||py<m.y||py>m.y+m.h)return false;lookAt((m.left??WORLD.left)+(px-m.x)/m.k,(m.top??WORLD.top)+(py-m.y)/m.k);return true;}
 function canvasPoint(e){const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};}
 let fenceStart=null;
 function endDrag(){fenceStart=null;pointer.down=false;pointer.drag=null;document.body.classList.remove('is-panning');}
 canvas.addEventListener('pointermove',e=>{const p=canvasPoint(e);
  if(pointer.down&&live()){
   if(pointer.drag==='mini')onMinimap(p.x,p.y,true);
-  else{if(!pointer.drag&&pointer.button!==2&&Math.hypot(p.x-pointer.startX,p.y-pointer.startY)>6){pointer.drag=pointer.button===0&&placing==='fence'?'fence':pointer.button===0&&pointer.shift&&!placing?'box':'pan';document.body.classList.toggle('is-panning',pointer.drag==='pan');}
-   if(pointer.drag==='pan'){camera.cx-=(p.x-pointer.x)/camera.zoom;camera.cy-=(p.y-pointer.y)/camera.zoom;view();}}}
+  else{if(!pointer.drag&&Math.hypot(p.x-pointer.startX,p.y-pointer.startY)>6){pointer.drag=dragKind();document.body.classList.toggle('is-panning',pointer.drag==='pan');}
+   if(pointer.drag==='pan'){const c=cam();c.cx-=(p.x-pointer.x)/c.zoom;c.cy-=(p.y-pointer.y)/c.zoom;view();}}}
  Object.assign(pointer,p,{over:true});});
 canvas.addEventListener('pointerleave',()=>{pointer.over=false;$('tooltip').hidden=true;});
-canvas.addEventListener('pointerdown',e=>{unlockAudio();focusGame();const p=canvasPoint(e);Object.assign(pointer,p,{down:true,button:e.button,startX:p.x,startY:p.y,drag:null,shift:e.shiftKey});canvas.setPointerCapture(e.pointerId);
+canvas.addEventListener('pointerdown',e=>{unlockAudio();focusGame();const p=canvasPoint(e);Object.assign(pointer,p,{down:true,button:e.button,touch:e.pointerType==='touch',startX:p.x,startY:p.y,drag:null,shift:e.shiftKey});canvas.setPointerCapture(e.pointerId);
  if(!live())return;
  if(e.button===0&&onMinimap(p.x,p.y)){pointer.drag='mini';return;}
- if(e.button===0&&placing==='fence')fenceStart=toWorld(p.x,p.y);
- if(e.button===2){const at=toWorld(p.x,p.y);if(placing){if(!game.removeGadgetAt(at.x,at.y))setPlacing(null);}else if(!commandAt(at))selectOnly([]);sync();}});
+ if(e.button===0&&placing==='fence')fenceStart=toWorld(p.x,p.y);});
 canvas.addEventListener('pointerup',e=>{const p=canvasPoint(e),was={...pointer},lineStart=fenceStart;endDrag();
- if(!live()||was.button!==0||was.drag==='pan'||was.drag==='mini')return;
+ if(!live()||was.drag==='pan'||was.drag==='mini')return;
+ if(was.button===2){const at=toWorld(p.x,p.y);if(placing){if(!game.removeGadgetAt(at.x,at.y))setPlacing(null);}else commandAt(at,e.shiftKey);sync();return;}
+ if(was.button!==0)return;
  if(was.drag==='fence'&&lineStart){game.placeFenceLine(lineStart,toWorld(p.x,p.y));sync();return;}
- if(was.drag==='box'){boxSelect({x0:was.startX,y0:was.startY,x1:p.x,y1:p.y});return;}
- clickAt(p.x,p.y,e.shiftKey);sync();});
+ if(was.drag==='box'){boxSelect({x0:was.startX,y0:was.startY,x1:p.x,y1:p.y},e.shiftKey);return;}
+ clickAt(p.x,p.y,e.shiftKey,was.touch);sync();});
 canvas.addEventListener('pointercancel',endDrag);
 canvas.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-canvas.addEventListener('wheel',e=>{if(!live()&&game.s.mode!=='title')return;e.preventDefault();const before=toWorld(pointer.x,pointer.y);camera.zoom=Math.max(.45,Math.min(1.4,camera.zoom*(e.deltaY<0?1.12:1/1.12)));const k=camera.zoom;camera.cx=before.x-(pointer.x-W/2)/k;camera.cy=before.y-(pointer.y-H/2)/k;},{passive:false});
-canvas.addEventListener('dblclick',e=>{const p=canvasPoint(e),at=toWorld(p.x,p.y);const person=game.personAt(at.x,at.y);if(person)lookAt(person.x,person.y);});
+canvas.addEventListener('wheel',e=>{if(!live()&&game.s.mode!=='title')return;e.preventDefault();const before=toWorld(pointer.x,pointer.y),c=cam();c.zoom=Math.max(.45,Math.min(1.4,c.zoom*(e.deltaY<0?1.12:1/1.12)));const k=c.zoom;c.cx=before.x-(pointer.x-W/2)/k;c.cy=before.y-(pointer.y-H/2)/k;},{passive:false});
+// Double-click someone to select everyone outside who has the same job.
+canvas.addEventListener('dblclick',e=>{if(!live()||placing)return;const p=canvasPoint(e),at=toWorld(p.x,p.y);if(game.run){const u=game.run.unitAt(at.x,at.y);if(u)selectOnly(game.run.alive.filter(x=>x.p.job===u.p.job).map(x=>x.id));return;}const person=game.personAt(at.x,at.y);if(person)selectOnly(game.s.people.filter(x=>x.job===person.job&&outside(x)).map(x=>x.id));});
 
 // ===== Hover: whatever is under the mouse is described, and empty lots show what could stand there =====
+const ZOMBIE_NAMES={brute:'Brute',runner:'Runner',crawler:'Crawler',spitter:'Spitter',screamer:'Screamer',walker:'Walker'};
+function describeSite(at){const run=game.run,u=run.unitAt(at.x,at.y);
+ if(u)return {hover:{unit:u},html:`<strong>${u.p.name}</strong><span>${u.p.tool==='gun'?'Shotgun':u.p.tool==='scythe'?'Scythe':'Bare hands'} · ${Math.ceil(u.p.hp)}/${u.p.maxHp} health</span><em>${u.status}</em>${selected.has(u.id)?'':'<small>Click to select · Shift-click to add</small>'}`};
+ const z=run.zombieAt(at.x,at.y);if(z)return {hover:{zombie:z},html:`<strong>${ZOMBIE_NAMES[z.kind]||'Zombie'}</strong><span>${Math.ceil(z.hp)}/${z.maxHp} health</span>${selected.size?'<small>Right-click: everyone selected attacks it</small>':''}`};
+ const c=run.containerAt(at.x,at.y);if(c)return {hover:{container:c},html:`<strong>${c.marked?'Marked cache':c.kind[0].toUpperCase()+c.kind.slice(1)}</strong><span>${c.progress>0?`${Math.round(c.progress*100)}% searched`:'Not searched yet'}</span><small>${selected.size?'Right-click to search it':'Select someone, then right-click to search it'}</small>`};
+ const b=run.buildingAt(at.x,at.y);if(b)return {hover:{building:b},html:`<strong>${b.name}</strong><span>${b.checked?'Checked':'Not checked yet · walk inside to see what is there'}</span>`};
+ return {hover:{},html:''};}
 function describe(at){
+ if(game.run)return describeSite(at);
  const s=game.s,person=game.personAt(at.x,at.y);
- if(person)return {hover:{person},html:`<strong>${person.name}</strong><span>${JOBS[person.job]}${person.tool?` · ${TOOLS[person.tool]}`:''} · ${Math.ceil(person.hp)}/${person.maxHp} health</span><em>${person.status}</em>${selected.has(person.id)?'':'<small>Click to select · Shift-click to add</small>'}`};
+ if(person)return {hover:{person},html:`<strong>${person.name}</strong><span>${JOBS[person.job]}${person.tool?` · ${TOOLS[person.tool]}`:''} · ${Math.ceil(person.hp)}/${person.maxHp} health</span><em>${person.status}</em>${selected.has(person.id)?'':'<small>Click to select · Shift-click to add · double-click for everyone on the same job</small>'}`};
  const zombie=game.zombieAt(at.x,at.y);
- if(zombie)return {hover:{zombie},html:`<strong>${zombie.boss?'Colossus':({brute:'Brute',runner:'Runner',crawler:'Crawler',spitter:'Spitter',screamer:'Screamer',walker:'Walker'}[zombie.kind]||'Zombie')}</strong><span>${Math.ceil(zombie.hp)}/${zombie.maxHp} health</span>${zombie.kind==='crawler'?'<em>Slips under fences · use spikes</em>':zombie.kind==='spitter'?'<em>Ranged acid attack · outrange it with shotguns</em>':zombie.kind==='screamer'?'<em>Calls reinforcements near the farmhouse</em>':''}${selected.size?'<small>Click to attack it</small>':''}`};
+ if(zombie)return {hover:{zombie},html:`<strong>${zombie.boss?'Colossus':({brute:'Brute',runner:'Runner',crawler:'Crawler',spitter:'Spitter',screamer:'Screamer',walker:'Walker'}[zombie.kind]||'Zombie')}</strong><span>${Math.ceil(zombie.hp)}/${zombie.maxHp} health</span>${zombie.kind==='crawler'?'<em>Slips under fences · use spikes</em>':zombie.kind==='spitter'?'<em>Ranged acid attack · outrange it with shotguns</em>':zombie.kind==='screamer'?'<em>Calls reinforcements near the farmhouse</em>':''}${selected.size?'<small>Right-click: everyone selected attacks it</small>':''}`};
  const site=game.gadgetSiteAt(at.x,at.y);
- if(site)return {hover:{},html:`<strong>${GADGETS[site.gadget].name} · planned</strong><span>${Math.round(site.progress*100)}% built</span><small>${selected.size?'Click to build it':'A builder will put it up'}${placing?' · Right-click to cancel':''}</small>`};
+ if(site)return {hover:{},html:`<strong>${GADGETS[site.gadget].name} · planned</strong><span>${Math.round(site.progress*100)}% built</span><small>${selected.size?'Right-click to send them to build it':'A builder will put it up'}${placing?' · Right-click to cancel':''}</small>`};
  const lot=game.lotAt(at.x,at.y);
  if(lot){const b=BUILDINGS[lot],level=s.buildings[lot],next=b.levels[level],building=s.sites.find(x=>x.building===lot);
-  if(building)return {hover:{lot},html:`<strong>${b.name} · under construction</strong><span>${Math.round(building.progress*100)}% built${building.level>1?` · level ${building.level}`:''}</span><small>${selected.size?'Click to send the selected people to build':'Give someone the Builder job, or select people and click here'}</small>`};
+  if(building)return {hover:{lot},html:`<strong>${b.name} · under construction</strong><span>${Math.round(building.progress*100)}% built${building.level>1?` · level ${building.level}`:''}</span><small>${selected.size?'Right-click to send the selected people to build':'Give someone the Builder job, or select people and right-click here'}</small>`};
   if(!level)return {hover:{lot},html:`<strong>${b.name}</strong><span>${b.about}</span><em>${next.text}</em><small>Click to build · ${next.cost} scrap · ${s.scrap>=next.cost?'you can afford it':'not enough scrap'}</small>`};
   return {hover:{lot},html:`<strong>${b.name} · level ${level}</strong><span>${b.levels[level-1].text}</span>${next?`<small>Click to see the next level · ${next.cost} scrap</small>`:'<small>Fully upgraded</small>'}`};}
  const gadget=game.builtGadgetAt(at.x,at.y);
- if(gadget)return {hover:{},html:`<strong>${GADGETS[gadget.kind].name}</strong><span>${Math.ceil(gadget.hp)}/${gadget.maxHp} sturdy</span>${gadget.hp<gadget.maxHp&&selected.size?'<small>Click to mend it</small>':''}`};
+ if(gadget)return {hover:{},html:`<strong>${GADGETS[gadget.kind].name}</strong><span>${Math.ceil(gadget.hp)}/${gadget.maxHp} sturdy</span>${gadget.hp<gadget.maxHp&&selected.size?'<small>Right-click to mend it</small>':''}`};
  const plot=game.plotAt(at.x,at.y);
- if(plot)return {hover:{plot},html:`<strong>${plot.growth>=1?'Ripe crop':plot.growth<0?'Empty plot':'Growing'}</strong><span>${plot.growth>=1?'Ready to harvest':plot.growth<0?(s.seeds?'Ready to plant':'No seeds left'):`${Math.ceil((1-plot.growth)*game.growTimeFor(plot))}s to go`}</span>${selected.size&&game.plotNeedsWork(plot)?'<small>Click to send them to work it</small>':''}`};
- if(at.x>=FARMHOUSE.x&&at.x<=FARMHOUSE.x+FARMHOUSE.w&&at.y>=FARMHOUSE.y&&at.y<=FARMHOUSE.y+FARMHOUSE.h)return {hover:{},html:`<strong>Farmhouse</strong><span>${Math.ceil(s.farmHp)}/${game.maxFarmHealth()} · sleeps ${MAX_PEOPLE}</span>${selected.size?'<small>Click to send them inside</small>':''}`};
+ if(plot)return {hover:{plot},html:`<strong>${plot.growth>=1?'Ripe crop':plot.growth<0?'Empty plot':'Growing'}</strong><span>${plot.growth>=1?'Ready to harvest':plot.growth<0?(s.seeds?'Ready to plant':'No seeds left'):`${Math.ceil((1-plot.growth)*game.growTimeFor(plot))}s to go`}</span>${selected.size&&game.plotNeedsWork(plot)?'<small>Right-click to send them to work it</small>':''}`};
+ if(at.x>=FARMHOUSE.x&&at.x<=FARMHOUSE.x+FARMHOUSE.w&&at.y>=FARMHOUSE.y&&at.y<=FARMHOUSE.y+FARMHOUSE.h)return {hover:{},html:`<strong>Farmhouse</strong><span>${Math.ceil(s.farmHp)}/${game.maxFarmHealth()} · sleeps ${MAX_PEOPLE}</span>${selected.size?'<small>Right-click to send them inside</small>':''}`};
  return {hover:{},html:''};
 }
 let tooltipEvent=null;
@@ -231,11 +255,21 @@ window.addEventListener('keydown',e=>{
  if(document.querySelector('dialog[open]'))return;
  if(e.target instanceof HTMLSelectElement)return;
  if(e.target instanceof HTMLButtonElement&&(k===' '||k==='enter'))return;
- if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','p','escape','b','g','j','r','o','f','i','n','1','2','3','4','5','6','7','8','+','-','=','h'].includes(k))e.preventDefault();
+ if(e.ctrlKey&&k==='a'){e.preventDefault();if(live()){selectEveryone();sync();}return;}
+ if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','p','escape','b','g','j','r','o','f','i','n','q','m','1','2','3','4','5','6','7','8','+','-','=','h'].includes(k))e.preventDefault();
  keys.add(k);if(e.repeat)return;
  if(k==='p')togglePause();
  if(k==='escape'){if(!$('supplies-pop').hidden||!$('fields-pop').hidden)togglePop('supplies-pop',false);else if(placing)setPlacing(null);else if(selected.size)selectOnly([]);else togglePause();}
  if(!live())return;
+ if(game.run){const run=game.run;
+  if(k==='q')selectFighters();
+  if(k==='m')expUI.useMeds();
+  if(k==='h'&&selected.size){run.holdAll([...selected]);notice('Holding position.');}
+  if(k==='+'||k==='=')siteCamera.zoom=Math.min(1.4,siteCamera.zoom*1.12);
+  if(k==='-')siteCamera.zoom=Math.max(.45,siteCamera.zoom/1.12);
+  if(k===' '){const group=run.alive.filter(u=>selected.has(u.id)),at=group.length?group:run.alive;if(at.length)lookAt(at.reduce((t,u)=>t+u.x,0)/at.length,at.reduce((t,u)=>t+u.y,0)/at.length);}
+  const n=Number(k);if(n>=1&&n<=8){const u=run.units[n-1];if(u&&u.p.hp>0){e.shiftKey?toggleSelect(u.id):selectOnly([u.id]);if(!e.shiftKey)lookAt(u.x,u.y);}}
+  sync();return;}
  if(k==='b')openBuild();
  if(k==='g')setPlacing(placing?null:'fence');
  if(k==='j')openJournal(false);
@@ -243,6 +277,7 @@ window.addEventListener('keydown',e=>{
  if(k==='f')togglePop('fields-pop');
  if(k==='i')togglePop('supplies-pop');
  if(k==='n')confirmPhase();
+ if(k==='q')selectFighters();
  if(k==='r'&&placing)vertical=!vertical;
  if(k==='h')game.s.people.forEach(p=>selected.has(p.id)&&game.clearOrders([p.id]));
  if(k==='+'||k==='=')camera.zoom=Math.min(1.4,camera.zoom*1.12);
@@ -309,8 +344,8 @@ function syncPeople(){const s=game.s,list=$('people-list'),key=s.people.map(x=>x
 function syncSelection(){const s=game.s;cleanSelection();const group=s.people.filter(p=>selected.has(p.id));const bar=$('selection-bar');
  if(s.mode==='house')html($('selection-text'),'Everyone is at breakfast · <strong>start the day</strong> when you are ready');
  else if(placing){html($('selection-text'),`<strong>Placing: ${GADGETS[placing].name}</strong> · ${GADGETS[placing].cost} scrap · ${placing==='fence'?'drag to draw a line or click once':'click the map'} · <kbd>R</kbd> rotate · right-click to take back`);}
- else if(group.length){html($('selection-text'),`<strong>${listNames(group.map(p=>p.name))}</strong> · click the map to send ${group.length>1?'them':group[0].name}, or click a task: a crop, lot, zombie or the house.`);}
- else html($('selection-text'),'Click someone to select them, or <kbd>Shift</kbd>+drag a box. Drag to move the map.');
+ else if(group.length){html($('selection-text'),`<strong>${listNames(group.map(p=>p.name))}</strong> · right-click the map to send ${group.length>1?'them':group[0].name} (they fight on the way), or right-click a zombie, crop, lot or the house.`);}
+ else html($('selection-text'),'Click someone, or drag a box around a group. <kbd>Q</kbd> selects your fighters. Right-drag or <kbd>WASD</kbd> moves the map.');
  bar.classList.toggle('has-selection',group.length>0);$('back-to-work').hidden=!group.some(p=>p.order);$('deselect').hidden=!group.length;}
 $('back-to-work').addEventListener('click',()=>{game.clearOrders([...selected]);notice('Back to their jobs.');sync();});
 $('deselect').addEventListener('click',()=>{selectOnly([]);sync();});
@@ -319,6 +354,7 @@ $('deselect').addEventListener('click',()=>{selectOnly([]);sync();});
 const journal=$('journal-dialog');let journalIndex=-1,journalPaused=false;
 function openJournal(auto){if(document.querySelector('dialog[open]')||['title','prompt'].includes(game.s.mode))return;journalPaused=!auto&&game.s.mode==='playing';if(journalPaused){game.pause();keys.clear();}journalIndex=game.s.journal.length-1;renderJournal();$('journal-continue').hidden=game.s.mode!=='journal';$('journal-close').hidden=game.s.mode==='journal';journal.showModal();}
 $('journal-tool').addEventListener('click',()=>openJournal(false));
+$('fighters-btn').addEventListener('click',()=>{unlockAudio();if(live()){selectFighters();sync();}focusGame();});
 $('journal-continue').addEventListener('click',()=>journal.close());
 $('journal-close').addEventListener('click',()=>journal.close());
 $('journal-prev').addEventListener('click',()=>{journalIndex=Math.max(0,journalIndex-1);renderJournal();});
@@ -329,7 +365,7 @@ const survivorLine=e=>[`${e.survivors} living here`,e.arrivals.length&&`${listNa
 function renderJournal(){const pages=game.s.journal,entry=pages[journalIndex],row=(k,v)=>`<div><dt>${k}</dt><dd>${v}</dd></div>`;$('journal-empty').hidden=!!entry;$('journal-prev').disabled=journalIndex<=0;$('journal-next').disabled=journalIndex>=pages.length-1;text('journal-page-label',pages.length?`Page ${journalIndex+1} of ${pages.length}`:'');
  if(!entry){text('journal-title','A blank page');text('journal-mood','');$('journal-stats').innerHTML='';$('journal-totals').innerHTML='';return;}
  text('journal-title',`Day ${entry.day}`);text('journal-mood',journalMood(entry));
- $('journal-stats').innerHTML=[row('Days survived',entry.fell?`${entry.day-1} · fell on night ${entry.day}`:entry.day),row('Times my people got hit',entry.hits?`${entry.hits} (−${entry.damage} health)`:'Not once'),row('Zombies killed',entry.kills),row('Farmhouse damage',entry.farmDamage||'None'),row('Animals',`${entry.animals}${entry.animalDeaths.length?` · lost ${entry.animalDeaths.length}`:''}`),row('Survivors',survivorLine(entry)),row('Crops harvested',entry.harvested),row('The night',entry.horde?`A horde of ${entry.wave}`:'Quiet · a few stragglers')].join('');
+ $('journal-stats').innerHTML=[row('Days survived',entry.fell?`${entry.day-1} · fell on night ${entry.day}`:entry.day),row('Times my people got hit',entry.hits?`${entry.hits} (−${entry.damage} health)`:'Not once'),row('Zombies killed',entry.kills),row('Farmhouse damage',entry.farmDamage||'None'),row('Animals',`${entry.animals}${entry.animalDeaths.length?` · lost ${entry.animalDeaths.length}`:''}`),row('Survivors',survivorLine(entry)),row('Crops harvested',entry.harvested),row('The night',entry.horde?`A horde of ${entry.wave}`:'Quiet · a few stragglers'),entry.expedition&&row('Expedition',`${PLACES[entry.expedition.place]?.name||'A site'} · ${entry.expedition.lost?'the team was lost':`${entry.expedition.searched} searched · ${entry.expedition.kills} put down${entry.expedition.joined?` · ${entry.expedition.joined} joined`:''}${entry.expedition.deaths?` · ${entry.expedition.deaths} lost`:''}`}`)].filter(Boolean).join('');
  const upTo=pages.slice(0,journalIndex+1),sum=key=>upTo.reduce((total,page)=>total+(Array.isArray(page[key])?page[key].length:page[key]||0),0);
  $('journal-totals').innerHTML=[row('Nights survived',entry.fell?entry.day-1:entry.day),row('Zombies killed',sum('kills')),row('Times my people got hit',sum('hits')),row('Farmhouse damage',sum('farmDamage')),row('Crops harvested',sum('harvested')),row('Survivors lost',sum('deaths')),row('Animals lost',sum('animalDeaths'))].join('');}
 
@@ -351,7 +387,12 @@ function syncHouse(){const s=game.s,b=s.breakfast,show=s.mode==='house'&&!!b;$('
 
 // ===== Keeping the page in step with the game =====
 let previousMode='',opsShown=false,modalShown=false;
-function sync(){const s=game.s;const remaining=Math.max(0,Math.ceil(s.phaseDuration-s.phaseTime));const morning=['wheel','house'].includes(s.mode);text('day-label',`DAY ${String(morning?s.day+1:s.day).padStart(2,'0')}`);const wave=s.phase==='night'&&s.wave,left=wave?Math.max(0,wave.total-wave.spawned)+s.zombies.length:0;text('phase-label',morning?'MORNING':s.phase==='day'?'DAYLIGHT':wave?.horde?`HORDE · NIGHT ${s.day}`:'QUIET NIGHT');text('phase-timer',wave?`${left} left`:`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`);$('phase-fill').style.width=wave?`${wave.total?100*left/wave.total:0}%`:`${Math.max(0,100*(1-s.phaseTime/s.phaseDuration))}%`;document.querySelector('.hud-clock')?.classList.toggle('horde-on',!!wave?.horde);
+let lastRun=null;
+// A run starting: the camera goes to the truck and the whole team is selected.
+function runChanged(run){lastRun=run;if(!run)return;setPlacing(null);togglePop('supplies-pop',false);Object.assign(siteCamera,{cx:run.site.truck.x,cy:run.site.truck.y-200,zoom:1});selectOnly(run.alive.map(u=>u.id));}
+// Home at dusk: back to the farm camera at the south gate, with the day's summary.
+function expeditionHome(summary){selected.clear();lastRun=null;Object.assign(camera,{cx:560,cy:520});keys.clear();expUI?.showSummary(summary);sync();}
+function sync(){const s=game.s;document.body.classList.toggle('on-site',!!game.run);if(game.run!==lastRun)runChanged(game.run);expUI?.syncHud();const remaining=Math.max(0,Math.ceil(s.phaseDuration-s.phaseTime));const morning=['wheel','house'].includes(s.mode);text('day-label',`DAY ${String(morning?s.day+1:s.day).padStart(2,'0')}`);const wave=s.phase==='night'&&s.wave,left=wave?Math.max(0,wave.total-wave.spawned)+s.zombies.length:0;text('phase-label',morning?'MORNING':s.phase==='day'?'DAYLIGHT':wave?.horde?`HORDE · NIGHT ${s.day}`:'QUIET NIGHT');text('phase-timer',wave?`${left} left`:`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`);$('phase-fill').style.width=wave?`${wave.total?100*left/wave.total:0}%`:`${Math.max(0,100*(1-s.phaseTime/s.phaseDuration))}%`;document.querySelector('.hud-clock')?.classList.toggle('horde-on',!!wave?.horde);
  const ahead=game.nightsToHorde?game.nightsToHorde(morning?s.day+1:s.day):0,next=game.nightPlan?game.nightPlan((morning?s.day+1:s.day)+ahead):null,hordeLine=$('horde-line');if(hordeLine){const tonight=!wave&&ahead===0;hordeLine.classList.toggle('danger',tonight||!!wave?.horde);put(hordeLine,wave?(wave.horde?`${wave.total} in this horde · ${s.today.kills} killed tonight`:`Next horde in ${game.nightsToHorde(s.day+1)+1} night${game.nightsToHorde(s.day+1)?'s':''}`):tonight?`⚠ HORDE TONIGHT · ${next?.count||''} zombies`:`Next horde in ${ahead} night${ahead===1?'':'s'} · ${next?.count||''} zombies`);}document.body.classList.toggle('is-night',s.phase==='night');
  const hurt=s.people.reduce((t,p)=>t+p.hp,0),most=s.people.reduce((t,p)=>t+p.maxHp,0)||1;text('people-value',`${s.people.length}`);$('people-fill').style.width=`${100*hurt/most}%`;text('farm-value',`${Math.ceil(s.farmHp)}/${game.maxFarmHealth()}`);$('farm-fill').style.width=`${Math.max(0,100*s.farmHp/game.maxFarmHealth())}%`;
  for(const k of ['seeds','scrap','ammo'])text(k+'-value',s[k]);text('food-value',`${s.food}/${s.foodCap}`);$('food-value').parentElement.classList.toggle('full',s.food>=s.foodCap);text('water-bar',`${s.water}/${s.waterCap}`);text('harvest-value',s.harvested);text('kills-value',s.kills);const raised=Object.entries(s.buildings).filter(([id,n])=>n>(BUILDINGS[id].starts||0)).length;text('built-value',raised);const nights=s.mode==='won'?(s.campaign?10:3):s.day-1;
@@ -378,16 +419,18 @@ function sync(){const s=game.s;const remaining=Math.max(0,Math.ceil(s.phaseDurat
 // ===== The frame loop =====
 let last=performance.now(),hud=0;
 function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;const s=game.s;
- if(live()||s.mode==='title'){const mx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),my=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));camera.cx+=mx*720/camera.zoom*dt;camera.cy+=my*720/camera.zoom*dt;}
- game.update(dt*(colonyUI?.speed()||1));cleanSelection();syncTooltip();
+ if(live()||s.mode==='title'){const mx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),my=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));const c=cam();c.cx+=mx*720/c.zoom*dt;c.cy+=my*720/c.zoom*dt;}
+ game.advance(dt*(colonyUI?.speed()||1));cleanSelection();syncTooltip();
  const at=toWorld(pointer.x,pointer.y),ghost=placing&&pointer.over&&live()?game.gadgetGhost(placing,at.x,at.y,vertical):null,box=pointer.drag==='box'?{x0:pointer.startX,y0:pointer.startY,x1:pointer.x,y1:pointer.y}:null;
  // The main menu shows its own night scene; the real farm is drawn once a run begins.
  if(s.mode==='title'){menuScene??=createMenuScene(s);stepMenuScene(menuScene,dt);}else menuScene=null;
- renderer.render(menuScene||s,now/1000,{view:menuScene?menuView(now):view(),selected,hover,ghost,box,fenceLine:pointer.drag==='fence'&&fenceStart?game.fenceLine(fenceStart,at):null});
- if(s.mode==='playing'&&s.zombies.length&&Math.random()<dt*.5){const v=renderer.view,cx=v.x+W/2/v.scale,cy=v.y+H/2/v.scale;if(s.zombies.some(z=>Math.hypot(z.x-cx,z.y-cy)<400))beep('groan');}
+ if(game.run)drawSite(renderer,game.run,now/1000,{view:view(),selected,hover,box});
+ else renderer.render(menuScene||s,now/1000,{view:menuScene?menuView(now):view(),selected,hover,ghost,box,fenceLine:pointer.drag==='fence'&&fenceStart?game.fenceLine(fenceStart,at):null});
+ const dead=game.run?game.run.zombies:s.zombies;if(s.mode==='playing'&&dead.length&&Math.random()<dt*.5){const v=renderer.view,cx=v.x+W/2/v.scale,cy=v.y+H/2/v.scale;if(dead.some(z=>Math.hypot(z.x-cx,z.y-cy)<400))beep('groan');}
  hud+=dt;if(hud>.1||s.mode!==previousMode){sync();hud=0;}requestAnimationFrame(frame);}
 colonyUI=installColonyUI({game,selected,selectOnly,lookAt,notice,sync,focusGame,setPlacing,keys,start,afterLoad:()=>{rosterKey='';ops?.cancelResume();}});
-ops=installOperations({game,notice,sync,focusGame,beep});
+expUI=installExpeditionUI({game,notice,sync,focusGame,beep,selected,selectOnly,selectFighters});
+ops=installOperations({game,notice,sync,focusGame,beep,packTruck:o=>expUI.openPack(o)});
 colonyUI.refresh(true);
 let menuScene=null;
 const mainMenu=installMainMenu({beep});mainMenu.reset();

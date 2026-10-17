@@ -4,6 +4,9 @@
 
 # Last Harvest — Updates
 
+**Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:10 (Kuwait / Riyadh time, UTC+03:00)
+**State at that moment:** Update 31 (bottom of this file): expeditions are now played. The team leaves after breakfast with a packed truck, and you go with them to a site of their own for five minutes: check buildings, search, fight, and get home at dusk. Update 30 before it: squad controls (drag a box, right-click to give orders, Q for fighters). Codex's Updates 27–29 (the farmhouse inside and the house systems) are committed with them. The farmhouse outside, planned as the next update, is being done in a separate session. Next: the user tests the expeditions and the new controls.
+
 **Where we stopped (latest, newest first):** Saturday 17 October 2026, 12:09 (Kuwait / Riyadh time, UTC+03:00)
 **State at that moment:** Update 26 (the new main menu), now also on GitHub as a private repository: https://github.com/Mishooooo0/last-harvest (see "Repository" at the bottom of this file). Next: the user tests; "the operation part" (a playable expedition) is still waiting.
 
@@ -876,3 +879,57 @@ The user approved the indoor plan: the original twelve ideas plus the memory wal
 Save the current run and refresh the game window. At breakfast, choose **House & rooms →**. Order an improvement, assign a builder, then begin the day to have it installed.
 
 #Written by Codex
+
+
+## Update 30 — Saturday 17 October 2026, 14:10 (Riyadh, UTC+03:00): squad controls
+
+The user found fighting annoying: in practice only one person could be commanded at a time. They chose RTS-style controls.
+
+- **Selecting a group:** left-drag on the ground draws a box and selects everyone inside it (Shift adds). Click a person to select them; double-click picks everyone with the same job. **Q** selects the fighters (defenders and anyone with a shotgun), **Ctrl+A** everyone outside. A **Fighters** button joined the command card.
+- **Orders are right-clicks now:**
+  - on a zombie, the whole group attacks it and then moves on to the next zombie within about 200 px; when none is left they go back to their jobs;
+  - on the ground, an attack-move: they walk there as a group, stop to shoot (or close in with a scythe or fists) on anything nearby, then carry on and hold the spot;
+  - on a crop, lot, fence or the house, the same tasks as before. Shift+right-click still queues an order.
+- **Moving the map:** right-drag, middle-drag or WASD. On a phone a finger drag still moves the map, and a tap gives the order.
+- Left-click on empty ground clears the selection; a lot still opens its build card.
+- Help, hints and tooltips describe the new controls.
+- **Files:** `dist/main.js` (mouse and keys), `dist/colony.js` (`SQUAD`, attack-move and retargeting), `dist/index.html`, `dist/hud.css`. Two new tests in `upgrade-test.mjs`.
+
+## Update 31 — Saturday 17 October 2026, 14:10 (Riyadh, UTC+03:00): playable expeditions
+
+The user's "operation part": expeditions are played, not watched. The places leave the farm map, and an expedition takes the whole day.
+
+### Leaving
+- The four places (abandoned farm, gas station, roadside clinic, silent town) are **no longer drawn on the farm map**, and nobody walks there across it. Scouts still find them.
+- Teams leave **after breakfast**: put people on a place on the morning Operations board (or day 1's first board). In the middle of the day the places are greyed out.
+- Confirming opens **Pack the truck**: a shotgun, a scythe or bare hands for each member (from the free warehouse tools), how many **shells** and **meds** to take, and 1 food + 1 water each as before. It shows what stays at the farm for the night.
+
+### On the site
+- Each visit makes a **site map of its own**: blocks of buildings and yards with roads between them (3×2 blocks; the town 4×3), and the team's truck at the south edge.
+- **Checking places:** buildings have a roof and one door. Walking in checks the building: the roof lifts, its furniture can be searched, and whatever was inside shows: the dead, or someone hiding.
+- **Searching:** right-click a cabinet, shelf, locker, desk, crate, car, tractor, ambulance, pump or bin. It takes about 2.5 seconds; more searchers, the scouting skill, Sharp-eyed and the **Pathfinder** specialty make it faster (Pathfinder now "searches 30% faster", replacing its old injury-risk bonus).
+- **Loot:**
+  - seeds, scrap and gasoline, carried home;
+  - **meds**, usable on the site (+50 health, key M) and the rest carried home;
+  - **weapons**: a shotgun (with 6 shells) or a scythe. The finder, or an unarmed teammate, takes it at once; at home it adds to the warehouse for good;
+  - **survivors**: someone hiding in a building joins the team on the site, and moves in if the farmhouse has a free bed;
+  - radio parts at the gas station and the town, so the radio campaign can still be won.
+- Each repeat visit to a place finds less (×0.8 per visit, never below 40%).
+- **The dead:** each place has its own number and mix. Some wait inside buildings; more wander in as the day goes on (every 20 seconds at first, every 8 at the end). **Gunshots draw** any of the dead within about 400 px. Bites and spitters work as at the farm.
+- A teammate with the **Medic** job patches up the others nearby.
+- The same squad controls as on the farm. The HUD shows the time until sunset, how many of the dead are hunting the team, shells and meds, what was found, and the team.
+
+### The farm while you are away
+- You cannot give orders at the farm from the site. It runs its day in the background at 0.4× speed with the jobs set before leaving. Its news shows as a **farm radio** line, and its sounds stay at the farm.
+- The site lasts **5 minutes**. **Head home to the truck** ends the trip once everyone is aboard; at 5:00 the team leaves with whatever they carry. Either way the farm's day runs out first, so the team walks in through the south gate **at dusk**, and a summary of the day opens.
+- Deaths on the site are real deaths. A lost team brings nothing home. Kills, hits and the trip go in the day's journal.
+- **Saving waits until the team is home.** The dawn autosave is the morning they left. Old saves with a team on the old road bring them home empty-handed.
+- Farm-event caches still work: the decoded radio cache is a marked crate on the site, and the guarded cache brings 30% more of the dead.
+
+### Files and checks
+- **New:** `dist/expedition.js` (the rules), `dist/site-art.js` (drawing), `dist/expedition-ui.js` and `dist/expedition.css` (the screens), `expedition-test.mjs` (10 test groups, in `npm test`).
+- **Changed:** `dist/colony.js` (places become sites; leaving, coming home, the fast-forward to dusk, found weapons in the tool count), `dist/operations.js`, `dist/colony-renderer.js` (the places removed from the farm map), `dist/colony-ui.js` (the old decision dialog removed; saving waits), `dist/main.js` (the site camera, input and HUD), `dist/management-ui.js`, `dist/index.html`, `dist/engine.js` (exports its path helpers).
+- About ten tests that used the old travel-and-decide flow were rewritten for the new one. The balance bot caught a scout bug during the work (returning scouts could not walk back in through the gate); it is fixed, with a test.
+- **All 141 test groups pass.** The balance bot keeps 8 of 12 farms alive for 6 nights.
+- Checked in the browser: box select, right-click attacks and attack-moves, Q and Ctrl+A; a full expedition (packing, checking a building, fighting, searching, meds, heading home, the dusk summary); the silent town with all four survivors. No console errors. Drawing a site takes about 0.4 ms a frame; its simulation about 1.3 ms a step with 16 of the dead hunting.
+- **Not in this update:** the farmhouse outside, planned as the next update, is being done in a separate session.

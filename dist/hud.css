@@ -263,7 +263,7 @@ body.hud-stacked{overflow:auto}
 .chip i b{display:block;height:100%;background:#b88b76}
 /* Command card: a row of icons while folded; labels, selection and squad orders when open. */
 .hud .hud-command:not(.pinned){width:auto;gap:0}
-.hud .hud-command:not(.pinned) .command-grid{grid-template-columns:repeat(7,auto)}
+.hud .hud-command:not(.pinned) .command-grid{grid-template-columns:repeat(8,auto)}
 .hud .hud-command:not(.pinned) .cmd{grid-template-columns:auto;padding:7px 8px}
 .hud .hud-command:not(.pinned) .cmd :is(span,kbd,small){display:none}
 .hud .hud-command.pinned .slide-inner{padding-bottom:8px}

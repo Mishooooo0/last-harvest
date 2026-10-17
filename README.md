@@ -18,13 +18,13 @@ Saves live in the browser, per address, so always open the same one.
 
 ## Tests
 
-- `npm test` runs the rule tests (engine, upgrades, farm systems, graphics, homestead, perimeter, prices).
+- `npm test` runs the rule tests (engine, upgrades, farm systems, graphics, homestead, perimeter, prices, interior, house, expeditions).
 - `opening-browser-test.mjs` and `world-art-browser-test.mjs` drive a real Chrome with Playwright.
 
 ## Layout
 
 - `dist/` is the game itself; there is no build step. `index.html` loads `main.js`, which wires the modules together:
-  - **Rules:** `engine.js`, `colony.js`, `farm-systems.js`, `homestead.js`, `perimeter.js`, `prices.js`.
-  - **Drawing:** `renderer.js`, `colony-renderer.js`, `graphics.js`, `world-art.js`.
-  - **Screens:** `menu.js`, `opening.js`, `operations.js`, `management-ui.js`, `colony-ui.js`, `settings.js`.
+  - **Rules:** `engine.js`, `colony.js`, `farm-systems.js`, `homestead.js`, `house-systems.js`, `perimeter.js`, `expedition.js`, `prices.js`.
+  - **Drawing:** `renderer.js`, `colony-renderer.js`, `graphics.js`, `world-art.js`, `interior-art.js`, `house-art.js`, `site-art.js` (expedition sites).
+  - **Screens:** `menu.js`, `opening.js`, `operations.js`, `expedition-ui.js`, `management-ui.js`, `house-ui.js`, `colony-ui.js`, `settings.js`.
 - `UPDATES.md` is the full history of changes, one update after another. Nothing in it is ever deleted.

@@ -1,0 +1,78 @@
+/* ===== Expeditions (Update 31): packing the truck, the HUD on a site, and the summary at dusk ===== */
+/* On a site the farm's panels step aside; the system buttons (pause, sound, settings) stay. */
+.on-site .hud :is(.hud-left,.hud-resources,.hud-people,.hud-command,.hud-pop,.defense-bar){display:none!important}
+.on-site .hud .colony-tools #colony-save{opacity:.45}
+
+.site-hud{position:absolute;inset:0;pointer-events:none}
+.site-hud>*{pointer-events:auto}
+.hud .site-clock{left:12px;top:12px;width:262px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.site-sunset{display:flex;align-items:baseline;justify-content:space-between;font:9px var(--mono);letter-spacing:1px;color:#a7b395}
+.site-sunset strong{font:700 26px/1 var(--display);color:var(--ink);letter-spacing:.5px}
+.site-clock.late .site-sunset strong{color:#f0a36a}
+.site-meter>span{background:linear-gradient(90deg,#d77b3f,var(--gold))}
+.site-danger{font:10px/1.4 var(--mono);color:#a9b597}
+.site-danger.danger{color:#f0a283}
+.site-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.site-actions .phase-confirm{grid-column:1/-1;background:#3d3f24;border-color:#827748;color:var(--gold)}
+.site-actions .phase-confirm:hover:not(:disabled){background:#4a4b2a}
+.site-actions .mini-button{display:flex;align-items:center;justify-content:center;gap:6px}
+.site-radio{font:9px/1.45 var(--mono);color:#8f9d80;min-height:13px}
+.site-radio.flash{animation:radio-in 1.2s ease-out}
+@keyframes radio-in{0%{color:var(--gold)}}
+
+.hud .site-bag{top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:9px 14px;font:11px var(--mono)}
+.site-carry,.site-found{display:flex;align-items:center;gap:12px}
+.site-carry{padding-right:14px;border-right:1px solid #4a573d}
+:is(.site-carry,.site-found) span{display:flex;align-items:center;gap:5px;color:#c7ccb6}
+:is(.site-carry,.site-found) .icon{width:15px;height:15px;color:#a1af86}
+.site-found em{font-style:normal;color:#7f8d71}
+.site-found strong{color:var(--gold)}
+
+.hud .site-team{left:236px;right:12px;bottom:12px;display:flex;gap:6px;padding:7px;flex-wrap:nowrap;overflow:hidden}
+.site-card{display:flex;align-items:center;gap:8px;min-width:0;flex:0 1 190px;padding:6px 8px;border:1px solid #3d4934;border-radius:4px;background:#222c1f;color:#d3d9c3;text-align:left}
+.site-card.selected{border-color:var(--gold);background:#2f3523}
+.site-card.fallen{opacity:.4}
+.site-card .pc-avatar{width:26px;height:26px;font-size:11px;flex-shrink:0}
+.site-card-info{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.site-card-info strong{font-size:11px;white-space:nowrap}
+.site-card-info strong small{font:8px var(--mono);color:#b7d486;margin-left:4px}
+.site-card-tool{font:8px var(--mono);color:#8f9c80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.site-card .meter span{background:#b88b76}
+.hud .site-hint{right:12px;bottom:74px;padding:6px 10px;font:9px var(--mono);color:#8f9c80;pointer-events:none}
+
+/* Pack the truck */
+.truck-dialog{max-width:720px}
+.truck-modal h2{font:700 32px var(--display);margin:12px 0 8px}
+.truck-modal .help-intro{max-width:none}
+.truck-modal .help-intro strong{color:#e3c88a;font-weight:600}
+.truck-team{display:flex;flex-direction:column;gap:8px;margin:18px 0}
+.truck-person{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:8px 10px;background:#262e21;border:1px solid #35422c;border-radius:5px}
+.truck-person strong{display:block;font-size:13px;color:#dfe3cf}
+.truck-person small{display:block;font:9px var(--mono);color:#8a9879;margin-top:3px}
+.truck-weapons{display:flex;gap:5px}
+.truck-weapon{display:flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid #3d4934;border-radius:4px;background:#1f281c;color:#b8c0a6;font:600 11px var(--sans)}
+.truck-weapon .icon{width:15px;height:15px}
+.truck-weapon.on{border-color:var(--gold);background:#3d3f24;color:var(--gold)}
+.truck-supplies{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.truck-range{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:10px 12px;background:#262e21;border:1px solid #35422c;border-radius:5px;font:10px var(--mono);color:#b9c4a8}
+.truck-range span{display:flex;align-items:center;gap:6px}
+.truck-range .icon{width:15px;height:15px;color:#a1af86}
+.truck-range input{accent-color:var(--gold);width:100%}
+.truck-range output{color:var(--gold);white-space:nowrap}
+.truck-note{margin-top:12px;font-size:11px;color:#9aaa88}
+.truck-note.warn{color:#f0a283}
+.truck-message{margin-top:10px;min-height:16px;font:10px var(--mono);color:#f0a283}
+.truck-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+.truck-foot .primary-button{min-width:200px}
+
+/* Home at dusk */
+.home-dialog .help-modal h2{font:700 34px var(--display)}
+.home-list{margin:16px 0 22px;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.55;color:#c3cbb2}
+.home-list strong{color:#e3c88a}
+.home-list .warn strong{color:#f0a283}
+.home-dialog .primary-button{margin-left:auto}
+
+@media(max-width:760px){.truck-person{grid-template-columns:auto 1fr}.truck-weapons{grid-column:1/-1}.truck-supplies{grid-template-columns:1fr}}
+.hud-stacked .site-hud{position:static;display:flex;flex-direction:column;gap:8px}
+.hud-stacked .hud .site-hud .hud-panel{position:static;transform:none;width:auto}
+.hud-stacked .site-team{flex-wrap:wrap}
