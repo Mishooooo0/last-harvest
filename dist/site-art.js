@@ -3,6 +3,7 @@
 // reuse the farm renderer's pixel art, so a survivor looks the same on the farm and on a site.
 import {W,H} from './renderer.js';
 import {SITE} from './expedition.js';
+import {drawVehicle} from './vehicle-art.js';
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const THEMES={
@@ -37,19 +38,14 @@ function paintGround(r,site){
   else if(p.kind==='barrel'){rect(p.x+2,p.y,p.w-4,p.h,'#5c6350');rect(p.x,p.y+4,p.w,3,'#343e34');rect(p.x,p.y+p.h-7,p.w,3,'#343e34');}
  }
  // The truck that brought the team, and the way home.
- const t=site.truck;rect(t.x-46,t.y-6,92,40,'#20281f66');rect(t.x-44,t.y-12,88,36,'#6e4a36');rect(t.x-44,t.y-12,88,4,'#a06d4c');rect(t.x+10,t.y-30,34,20,'#5d4030');rect(t.x+14,t.y-27,26,10,'#a8c0c0');rect(t.x-40,t.y-8,46,22,'#4d3527');
- for(const wx of [t.x-30,t.x+26]){rect(wx-8,t.y+18,16,12,'#1d211d');rect(wx-4,t.y+21,8,6,'#5d625a');}
+ const t=site.truck;drawVehicle(g,{kind:'pickup',x:t.x-46,y:t.y-27,w:92,h:52});
  return c;
 }
 
 const CONTAINER={cabinet:['#7d5f3f','#a88458'],shelf:['#6d5a3a','#9c8456'],locker:['#5f6b68','#8c9a96'],desk:['#80603f','#a98251'],crate:['#8b6c40','#b58f58'],hay:['#b89955','#dcc278'],pump:['#a3412f','#d06a4f'],bin:['#4f5a48','#717d68'],cache:['#7a5a2e','#e3c774']};
 function drawContainer(r,g,c,t,hover){
  if(['car','tractor','ambulance'].includes(c.kind)){
-  const body=c.kind==='ambulance'?'#d8d4c4':c.kind==='tractor'?'#9b3f2e':'#5d6f7a',dark=c.kind==='ambulance'?'#a9a593':'#3a454c';
-  r.rect(g,c.x+4,c.y+8,c.w,c.h,'#1c241c55');r.rect(g,c.x,c.y,c.w,c.h,body);r.rect(g,c.x,c.y,c.w,4,'#ffffff30');r.rect(g,c.x+c.w*.3,c.y+5,c.w*.38,c.h-12,dark);r.rect(g,c.x+c.w*.33,c.y+8,c.w*.32,c.h-18,'#9fb6b8');
-  if(c.kind==='ambulance'){r.rect(g,c.x+c.w-20,c.y+c.h/2-6,12,4,'#b8483a');r.rect(g,c.x+c.w-16,c.y+c.h/2-10,4,12,'#b8483a');}
-  for(const wx of [c.x+10,c.x+c.w-22])for(const wy of [c.y-4,c.y+c.h-4])r.rect(g,wx,wy,12,8,'#1d211d');
-  if(c.searched){r.rect(g,c.x+c.w*.7,c.y+4,c.w*.25,8,'#2a2a24');}
+  drawVehicle(g,c);
  }else{
   const [base,top]=CONTAINER[c.kind]||CONTAINER.crate;
   r.rect(g,c.x+3,c.y+5,c.w,c.h,'#1c241c55');r.rect(g,c.x,c.y,c.w,c.h,base);r.rect(g,c.x,c.y,c.w,4,top);
@@ -88,7 +84,17 @@ export function drawSite(r,run,t,opts={}){
  g.font='bold 9px monospace';g.fillStyle=run.leaving?'#f0d78a':'#f0d78a99';g.textAlign='center';g.fillText(run.leaving?'EVERYONE TO THE TRUCK':'THE TRUCK · HEAD HOME',e.x+e.w/2,e.y-6);g.textAlign='left';
  for(const c of site.containers)if(!run.hidden(c))drawContainer(r,g,c,t,hover.container===c);
  // Where the selected people are headed.
- for(const u of run.alive){if(!selected.has(u.id)||!u.order)continue;const o=u.order,z=o.type==='attack'&&run.zombies.find(z=>z.id===o.zombieId),c=o.type==='search'&&site.containers.find(c=>c.id===o.containerId),to=z||(c?{x:c.x+c.w/2,y:c.y+c.h/2}:o);if(!Number.isFinite(to?.x))continue;g.strokeStyle=z?'#e0614acc':'#ffd772aa';g.lineWidth=1.5/k;g.setLineDash([4,4]);g.beginPath();g.moveTo(u.x,u.y);g.lineTo(to.x,to.y);g.stroke();g.setLineDash([]);}
+ for(const u of run.alive){
+  if(!selected.has(u.id)||!u.order)continue;
+  let from=u;
+  [u.order,...u.orders].forEach((o,i)=>{
+   const z=o.type==='attack'&&run.zombies.find(z=>z.id===o.zombieId),c=['search','sweep'].includes(o.type)&&site.containers.find(c=>c.id===o.containerId),b=o.type==='sweep'&&run.building(o.buildingId);
+   const to=z||(c?{x:c.x+c.w/2,y:c.y+c.h/2}:b?{x:b.x+b.w/2,y:b.y+b.h/2}:o);if(!Number.isFinite(to?.x)||!Number.isFinite(to?.y))return;
+   const color=z?'#e0614acc':o.role==='guard'?'#8fc3f0bb':'#ffd772bb';g.strokeStyle=color;g.lineWidth=1.5/k;g.setLineDash([4,4]);g.beginPath();g.moveTo(from.x,from.y);g.lineTo(to.x,to.y);g.stroke();g.setLineDash([]);
+   r.rect(g,to.x-7/k,to.y-8/k,14/k,14/k,'#19291ee6');g.font='bold '+(10/k)+'px monospace';g.fillStyle=color;g.textAlign='center';g.fillText(String(i+1),to.x,to.y+3/k);g.textAlign='left';from=to;
+  });
+ }
+
  const items=[];
  for(const z of run.zombies){if(z.hp<=0||run.zombieHidden(z))continue;items.push({y:z.y,draw:()=>{r.actor(g,z,false,t);if(hover.zombie===z){g.strokeStyle='#e0614a';g.lineWidth=2;g.beginPath();g.ellipse(z.x,z.y+6,16,7,0,0,Math.PI*2);g.stroke();}}});}
  for(const u of run.alive)items.push({y:u.y,draw:()=>r.person(g,{...u.p,x:u.x,y:u.y,angle:u.angle,moving:u.moving,walk:u.walk,hurt:u.hurt,hammering:u.hammering,flash:u.flash,swing:u.swing,bubble:'',panic:false},t,{selected:selected.has(u.id),hover:hover.unit===u})});

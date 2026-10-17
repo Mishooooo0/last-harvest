@@ -76,3 +76,6 @@
 .hud-stacked .site-hud{position:static;display:flex;flex-direction:column;gap:8px}
 .hud-stacked .hud .site-hud .hud-panel{position:static;transform:none;width:auto}
 .hud-stacked .site-team{flex-wrap:wrap}
+
+.defense-hint{position:absolute;left:0;right:0;bottom:100%;font-size:10px;line-height:1.5;color:#c5c9af;margin:0 0 6px;padding:7px 10px;background:#151e17e6;border:1px solid #5d6a48;border-radius:5px}.site-card-queue{float:right;color:#ffd772}.site-hint{max-width:570px}
+@media(max-width:900px){.defense-hint{display:none}}

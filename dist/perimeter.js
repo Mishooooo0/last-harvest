@@ -48,6 +48,42 @@ export function routePosition(route,f){
  return {...route[0],angle:0};
 }
 export const perimeterMethods={
+ boundarySafe(rect){const center={x:rect.x+rect.w/2,y:rect.y+rect.h/2};return !this.s.zombies.some(z=>z.hp>0&&Math.hypot(z.x-center.x,z.y-center.y)<180);},
+ maintainBoundary(dt){
+  // Explicit automatic work orders let builders repair safe sections at night, too.
+  // Never commandeer people with a player order, or send them into a nearby horde.
+  const s=this.s;
+  for(const p of s.people)if(p.order?.autoBoundary){
+   const target=p.order.type==='build'?s.sites.find(site=>site.id===p.order.siteId)?.rect:s.fences.find(f=>f.id===p.order.gadgetId);
+   if(p.job!=='builder'||p.expeditionId||!target||!this.boundarySafe(target)||s.zombies.some(z=>z.hp>0&&Math.hypot(z.x-p.x,z.y-p.y)<120)){
+    p.order=null;p.task=null;
+    if(p.orders.length){const [next,...rest]=p.orders;this.giveOrder(p,next);p.orders=rest;}
+   }
+  }
+  this.boundaryTimer=(this.boundaryTimer||0)-dt;if(this.boundaryTimer>0)return;this.boundaryTimer=.5;
+  const builders=s.people.filter(p=>p.job==='builder'&&p.hp>0&&!p.expeditionId&&p.away<=0&&!p.order&&!p.orders.length&&!s.zombies.some(z=>z.hp>0&&Math.hypot(z.x-p.x,z.y-p.y)<120));
+  if(!builders.length)return;
+  const slots=perimeterLayout();
+  for(const p of builders){
+   const claims=s.people.map(p=>p.order).filter(o=>o?.autoBoundary);
+   const distance=r=>Math.hypot(r.x+r.w/2-p.x,r.y+r.h/2-p.y);
+   const options=slots.filter(slot=>this.boundarySafe(slot)).map(slot=>{
+    const built=s.fences.find(f=>occupies(f,slot)),site=s.sites.find(site=>site.kind==='gadget'&&occupies({...site.rect,perimeter:site.perimeter},slot));
+    if(site)return claims.some(o=>o.siteId===site.id)?null:{site,slot};
+    if(built)return built.hp<built.maxHp&&!claims.some(o=>o.gadgetId===built.id)?{built,slot}:null;
+    if(s.traps.some(t=>overlap(t,slot))||s.scrap<GADGETS[slot.kind].cost)return null;
+    return {slot};
+   }).filter(Boolean).sort((a,b)=>(a.built?1:0)-(b.built?1:0)||distance(a.slot)-distance(b.slot));
+   const target=options[0];if(!target)continue;
+   if(target.built){this.giveOrder(p,{type:'repair',gadgetId:target.built.id,autoBoundary:true});continue;}
+   let site=target.site;
+   if(!site){
+    const {kind,perimeter,vertical,...rect}=target.slot;s.scrap-=GADGETS[kind].cost;
+    site={id:++this.siteId,kind:'gadget',gadget:kind,perimeter,rect,vertical,progress:0,work:GADGETS[kind].work,priority:1};s.sites.push(site);
+   }
+   this.giveOrder(p,{type:'build',siteId:site.id,autoBoundary:true});
+  }
+ },
  defenseCount(){return this.s.fences.filter(f=>!f.perimeter).length+this.s.traps.length+this.s.sites.filter(p=>p.kind==='gadget'&&!p.perimeter).length;},
  perimeterStatus(){const layout=perimeterLayout(),s=this.s;let missing=0,damaged=0,cost=0,waiting=0;for(const slot of layout){const built=s.fences.find(f=>occupies(f,slot)),planned=s.sites.some(p=>p.kind==='gadget'&&occupies({...p.rect,perimeter:p.perimeter},slot));if(planned){waiting++;continue;}if(!built){if(s.traps.some(t=>overlap(t,slot)))continue;missing++;cost+=GADGETS[slot.kind].cost;}else if(built.hp<built.maxHp&&!built.repairPlanned){damaged++;cost+=FENCE.repairCost;}}return {missing,damaged,cost,waiting,total:layout.length};},
  restorePerimeter(){if(!['playing','paused'].includes(this.s.mode))return false;const info=this.perimeterStatus();if(!info.cost||this.s.scrap<info.cost){this.notice(info.cost?'Need '+info.cost+' scrap to restore the boundary.':'The boundary is intact or repairs are already queued.',true);return false;}this.s.scrap-=info.cost;for(const slot of perimeterLayout()){if(this.s.sites.some(p=>p.kind==='gadget'&&occupies({...p.rect,perimeter:p.perimeter},slot))||this.s.traps.some(t=>overlap(t,slot)))continue;const built=this.s.fences.find(f=>occupies(f,slot));if(built){if(built.hp<built.maxHp)built.repairPlanned=true;continue;}const {kind,perimeter,vertical,...rect}=slot;this.s.sites.push({id:++this.siteId,kind:'gadget',gadget:kind,perimeter,rect,vertical,progress:0,work:GADGETS[kind].work,priority:1});}this.notice('Boundary repairs queued. Assign a builder to close the gaps.',true);return true;},

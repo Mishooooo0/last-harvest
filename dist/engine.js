@@ -945,7 +945,7 @@ export class GameEngine {
     else if (s.plots.some(plot => rectsOverlap({ x: plot.x - 20, y: plot.y - 20, w: 40, h: 40 }, rect))) reason = 'Keep the crop rows clear';
     else if (s.zombies.some(zombie => circleHitsRect(zombie.x, zombie.y, zombie.radius, rect))) reason = 'Something is standing there';
     else if ((this.defenseCount?.() ?? (s.fences.length + s.traps.length + s.sites.filter(site => site.kind === 'gadget').length)) >= FENCE.max) reason = `All ${FENCE.max} defenses are placed`;
-    return { kind, rect, vertical: !!vertical && GADGETS[kind].rotates, repair, valid: !reason, reason, cost: repair ? FENCE.repairCost : GADGETS[kind].cost };
+    return { kind, rect, vertical: !!vertical && GADGETS[kind].rotates, repair, valid: !reason, reason, cost: repair ? (repair.repairPlanned?0:FENCE.repairCost) : GADGETS[kind].cost };
   }
 
   // Placing a defense pays for it and leaves a blueprint for someone to build.
@@ -1346,7 +1346,7 @@ export class GameEngine {
     const needed = fix === 'house' ? s.farmHp < (this.maxFarmHealth?.() ?? 100) : !!fix && gadgets.includes(fix) && fix.hp < fix.maxHp;
     if (!needed) {
       const center = gadget => ({ x: gadget.x + gadget.w / 2, y: gadget.y + gadget.h / 2 });
-      const broken = gadgets.filter(gadget => gadget.hp < gadget.maxHp).sort((a, b) => distance(center(a), person) - distance(center(b), person))[0];
+      const broken = gadgets.filter(gadget => gadget.hp < gadget.maxHp && (!gadget.perimeter || !this.boundarySafe || this.boundarySafe(gadget))).sort((a, b) => distance(center(a), person) - distance(center(b), person))[0];
       if (broken) person.task = { fix: broken, x: broken.x + broken.w / 2, y: broken.y + broken.h + 14 };
       else if (s.farmHp < (this.maxFarmHealth?.() ?? 100)) person.task = { fix: 'house', x: HOUSE_DOOR.x - 50, y: HOUSE_DOOR.y + 6 };
       else if (fix) person.task = null;

@@ -1,3 +1,4 @@
+import {installMorningWheel} from './wheel-ui.js';
 import {installOpening} from './opening.js';
 import {BUILDINGS,UPGRADES,GADGETS,PANTRY_SIZE,WATER_CAP,DAWN_SUPPLIES,MEAL_COST,JOBS,MAX_PEOPLE,TOOLS,WORLD,FARM_CENTER,FARMHOUSE,SHOP} from './engine.js';
 import {LOOKS,W,H,atBreakfast} from './renderer.js';
@@ -110,9 +111,9 @@ let placing=null,vertical=false,hover={},pendingAssign=null;
 function selectOnly(ids){selected.clear();ids.forEach(id=>selected.add(id));if(ids.length)beep('select');syncSelection();}
 function toggleSelect(id){selected.has(id)?selected.delete(id):selected.add(id);beep('select');syncSelection();}
 function cleanSelection(){const ids=new Set((game.run?game.run.alive:game.s.people).map(p=>p.id));for(const id of [...selected])if(!ids.has(id))selected.delete(id);}
-function commandAt(at,queued=false){
+function commandAt(at,queued=false,replace=false){
  if(!selected.size)return false;
- if(game.run){const reply=game.run.command([...selected],at.x,at.y);if(!reply)return false;beep('order');notice(reply.text);return true;}
+ if(game.run){const reply=game.run.command([...selected],at.x,at.y,queued,replace);if(!reply)return false;beep('order');notice(reply.text);return true;}
  const reply=colonyUI?colonyUI.command(at,queued):game.command([...selected],at.x,at.y);
  if(!reply)return false;
  if(reply.type==='lot'){pendingAssign=[...selected];openBuild(reply.lot);return true;}
@@ -143,7 +144,7 @@ function selectFighters(){if(game.run){const ids=game.run.alive.filter(u=>u.p.to
 function selectEveryone(){selectOnly((game.run?game.run.alive:game.s.people.filter(outside)).map(p=>p.id));}
 // Left-drag draws a selection box (Shift adds to it); right- or middle-drag moves the map, and so does a finger.
 // A short left press is a click; a short right press sends the selected people.
-function dragKind(){if(pointer.button!==0||pointer.touch)return 'pan';if(placing==='fence')return 'fence';return placing?'pan':'box';}
+function dragKind(){if(pointer.button!==0)return 'pan';if(placing)return 'defense';return pointer.touch?'pan':'box';}
 function onMinimap(px,py,clamp){const m=renderer.miniRect;if(!m||!live())return false;if(clamp){px=Math.max(m.x,Math.min(m.x+m.w,px));py=Math.max(m.y,Math.min(m.y+m.h,py));}else if(px<m.x||px>m.x+m.w||py<m.y||py>m.y+m.h)return false;lookAt((m.left??WORLD.left)+(px-m.x)/m.k,(m.top??WORLD.top)+(py-m.y)/m.k);return true;}
 function canvasPoint(e){const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};}
 let fenceStart=null;
@@ -158,12 +159,12 @@ canvas.addEventListener('pointerleave',()=>{pointer.over=false;$('tooltip').hidd
 canvas.addEventListener('pointerdown',e=>{unlockAudio();focusGame();const p=canvasPoint(e);Object.assign(pointer,p,{down:true,button:e.button,touch:e.pointerType==='touch',startX:p.x,startY:p.y,drag:null,shift:e.shiftKey});canvas.setPointerCapture(e.pointerId);
  if(!live())return;
  if(e.button===0&&onMinimap(p.x,p.y)){pointer.drag='mini';return;}
- if(e.button===0&&placing==='fence')fenceStart=toWorld(p.x,p.y);});
-canvas.addEventListener('pointerup',e=>{const p=canvasPoint(e),was={...pointer},lineStart=fenceStart;endDrag();
+ if(e.button===0&&placing)fenceStart=toWorld(p.x,p.y);});
+canvas.addEventListener('pointerup',e=>{if(!pointer.down)return;const p=canvasPoint(e),was={...pointer},lineStart=fenceStart;endDrag();
  if(!live()||was.drag==='pan'||was.drag==='mini')return;
- if(was.button===2){const at=toWorld(p.x,p.y);if(placing){if(!game.removeGadgetAt(at.x,at.y))setPlacing(null);}else commandAt(at,e.shiftKey);sync();return;}
+ if(was.button===2){const at=toWorld(p.x,p.y);if(placing){if(e.altKey)game.removeGadgetAt(at.x,at.y);else setPlacing(null);}else commandAt(at,e.shiftKey,e.altKey);sync();return;}
  if(was.button!==0)return;
- if(was.drag==='fence'&&lineStart){game.placeFenceLine(lineStart,toWorld(p.x,p.y));sync();return;}
+ if(was.drag==='defense'&&lineStart){game.placeDefenseLine(placing,lineStart,toWorld(p.x,p.y));sync();return;}
  if(was.drag==='box'){boxSelect({x0:was.startX,y0:was.startY,x1:p.x,y1:p.y},e.shiftKey);return;}
  clickAt(p.x,p.y,e.shiftKey,was.touch);sync();});
 canvas.addEventListener('pointercancel',endDrag);
@@ -178,8 +179,8 @@ const ZOMBIE_NAMES={brute:'Brute',runner:'Runner',crawler:'Crawler',spitter:'Spi
 function describeSite(at){const run=game.run,u=run.unitAt(at.x,at.y);
  if(u)return {hover:{unit:u},html:`<strong>${u.p.name}</strong><span>${u.p.tool==='gun'?'Shotgun':u.p.tool==='scythe'?'Scythe':'Bare hands'} · ${Math.ceil(u.p.hp)}/${u.p.maxHp} health</span><em>${u.status}</em>${selected.has(u.id)?'':'<small>Click to select · Shift-click to add</small>'}`};
  const z=run.zombieAt(at.x,at.y);if(z)return {hover:{zombie:z},html:`<strong>${ZOMBIE_NAMES[z.kind]||'Zombie'}</strong><span>${Math.ceil(z.hp)}/${z.maxHp} health</span>${selected.size?'<small>Right-click: everyone selected attacks it</small>':''}`};
- const c=run.containerAt(at.x,at.y);if(c)return {hover:{container:c},html:`<strong>${c.marked?'Marked cache':c.kind[0].toUpperCase()+c.kind.slice(1)}</strong><span>${c.progress>0?`${Math.round(c.progress*100)}% searched`:'Not searched yet'}</span><small>${selected.size?'Right-click to search it':'Select someone, then right-click to search it'}</small>`};
- const b=run.buildingAt(at.x,at.y);if(b)return {hover:{building:b},html:`<strong>${b.name}</strong><span>${b.checked?'Checked':'Not checked yet · walk inside to see what is there'}</span>`};
+ const c=run.containerAt(at.x,at.y);if(c)return {hover:{container:c},html:`<strong>${c.marked?'Marked cache':c.kind[0].toUpperCase()+c.kind.slice(1)}</strong><span>${c.progress>0?`${Math.round(c.progress*100)}% searched`:'Not searched yet'}</span><small>${selected.size?'Right-click: queue search · Alt-right-click: search now':'Select someone, then right-click to search it'}</small>`};
+ const b=run.buildingAt(at.x,at.y);if(b)return {hover:{building:b},html:`<strong>${b.name}</strong><span>${b.checked?'Checked':'Not checked yet'}</span><small>Right-click: enter, cover and search automatically</small>`};
  return {hover:{},html:''};}
 function describe(at){
  if(game.run)return describeSite(at);
@@ -215,7 +216,7 @@ function syncTooltip(){
 
 // ===== Defenses: pick one, then click the map to place a blueprint for a builder =====
 const GADGET_KEYS=['fence','wire','spikes','mine'];
-function setPlacing(kind){fenceStart=null;placing=kind;document.body.classList.toggle('is-placing',!!kind);document.querySelectorAll('[data-gadget]').forEach(b=>b.classList.toggle('active',b.dataset.gadget===kind));$('defense-bar').hidden=!kind;$('defense-btn').classList.toggle('active',!!kind);sync();}
+function setPlacing(kind){endDrag();placing=kind;document.body.classList.toggle('is-placing',!!kind);document.querySelectorAll('[data-gadget]').forEach(b=>b.classList.toggle('active',b.dataset.gadget===kind));$('defense-bar').hidden=!kind;if(kind)text('defense-hint','Click repeatedly or drag a row · snaps to ends · R rotates · right-click / Esc finishes · Alt-right-click removes');$('defense-btn').classList.toggle('active',!!kind);sync();}
 document.querySelectorAll('[data-gadget]').forEach(b=>b.addEventListener('click',()=>setPlacing(b.dataset.gadget)));
 $('defense-btn').addEventListener('click',()=>{unlockAudio();setPlacing(placing?null:'fence');});
 $('defense-rotate').addEventListener('click',()=>{vertical=!vertical;});
@@ -378,15 +379,9 @@ function renderJournal(){const pages=game.s.journal,entry=pages[journalIndex],ro
  $('journal-totals').innerHTML=[row('Nights survived',entry.fell?entry.day-1:entry.day),row('Zombies killed',sum('kills')),row('Times my people got hit',sum('hits')),row('Farmhouse damage',sum('farmDamage')),row('Crops harvested',sum('harvested')),row('Survivors lost',sum('deaths')),row('Animals lost',sum('animalDeaths'))].join('');}
 
 // ===== The morning wheel: the engine picks the slice, the wheel just spins to land on it =====
-const wheelDialog=$('wheel-dialog'),wheelEl=$('wheel');let wheelAngle=0,wheelSpinning=false;
-function openWheel(){if(wheelDialog.open)return;text('wheel-day',`DAY ${game.s.day+1}`);text('wheel-result','');$('wheel-result').classList.remove('win');$('wheel-spin').hidden=false;$('wheel-spin').disabled=false;$('wheel-continue').hidden=true;wheelDialog.showModal();$('wheel-spin').focus();}
-function wheelRotation(){const m=getComputedStyle(wheelEl).transform;if(!m||m==='none')return 0;const [a,b]=m.slice(7,-1).split(',').map(Number);return (Math.atan2(b,a)*180/Math.PI+360)%360;}
-$('wheel-spin').addEventListener('click',()=>{if(wheelSpinning)return;unlockAudio();const result=game.spinWheel();if(!result)return;wheelSpinning=true;$('wheel-spin').disabled=true;const center=result.index*90+45,jitter=(Math.random()-.5)*50;wheelAngle+=360*6+((360-center-wheelAngle%360)+720)%360+jitter;wheelEl.style.transform=`rotate(${wheelAngle}deg)`;let lastSlice=-1;const tick=()=>{if(!wheelSpinning)return;const slice=Math.floor(wheelRotation()/45);if(slice!==lastSlice){lastSlice=slice;beep('tick');}requestAnimationFrame(tick);};requestAnimationFrame(tick);
- const land=()=>{wheelSpinning=false;text('wheel-result',result.text);$('wheel-result').classList.toggle('win',result.id==='upgrade');$('wheel-spin').hidden=true;$('wheel-continue').hidden=false;$('wheel-continue').focus();beep(result.id==='upgrade'?'jackpot':'buy');sync();};
- if(matchMedia('(prefers-reduced-motion: reduce)').matches)land();else wheelEl.addEventListener('transitionend',land,{once:true});});
-$('wheel-continue').addEventListener('click',()=>wheelDialog.close());
-wheelDialog.addEventListener('cancel',e=>{if(!game.s.wheel?.result||wheelSpinning)e.preventDefault();});
-wheelDialog.addEventListener('close',()=>{if(game.s.mode==='wheel'){if(!game.s.wheel?.result)game.spinWheel();game.openHouse();}focusGame();sync();});
+const wheelDialog=$('wheel-dialog');
+const morningWheel=installMorningWheel({game,sync,focusGame,unlockAudio,beep});
+function openWheel(){morningWheel.open();}
 
 // ===== Breakfast in the farmhouse =====
 function syncHouse(){const s=game.s,b=s.breakfast,show=s.mode==='house'&&!!b;$('house-overlay').hidden=!show;if(!show)return;text('house-day',`MORNING · DAY ${s.day+1}`);
@@ -433,7 +428,7 @@ function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;const s=game
  // The main menu shows its own night scene; the real farm is drawn once a run begins.
  if(s.mode==='title'){menuScene??=createMenuScene(s);stepMenuScene(menuScene,dt);}else menuScene=null;
  if(game.run)drawSite(renderer,game.run,now/1000,{view:view(),selected,hover,box});
- else renderer.render(menuScene||s,now/1000,{view:menuScene?menuView(now):view(),selected,hover,ghost,box,fenceLine:pointer.drag==='fence'&&fenceStart?game.fenceLine(fenceStart,at):null});
+ else renderer.render(menuScene||s,now/1000,{view:menuScene?menuView(now):view(),selected,hover,ghost,box,fenceLine:pointer.drag==='defense'&&fenceStart?game.defenseLine(placing,fenceStart,at):null});
  const dead=game.run?game.run.zombies:s.zombies;if(s.mode==='playing'&&dead.length&&Math.random()<dt*.5){const v=renderer.view,cx=v.x+W/2/v.scale,cy=v.y+H/2/v.scale;if(dead.some(z=>Math.hypot(z.x-cx,z.y-cy)<400))beep('groan');}
  hud+=dt;if(hud>.1||s.mode!==previousMode){sync();hud=0;}requestAnimationFrame(frame);}
 colonyUI=installColonyUI({saves:saveFiles,game,selected,selectOnly,lookAt,notice,sync,focusGame,setPlacing,keys,start,afterLoad:()=>{rosterKey='';ops?.cancelResume();}});
@@ -454,3 +449,4 @@ const cheatMenu=installCheatMenu({game,settings,saveSettings,sync,beep});
 $('settings-btn').addEventListener('click',()=>{unlockAudio();settingsUI?.open();});
 $('title-settings').addEventListener('click',()=>settingsUI?.open());
 sync();requestAnimationFrame(frame);
+

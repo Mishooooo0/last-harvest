@@ -1,5 +1,6 @@
 import {FARM_BOUNDARY,SCOUT_GATE} from './perimeter.js';
 import {renderResolution} from './render-resolution.js';
+import {drawVehicle} from './vehicle-art.js';
 import {BUILDINGS,LAMPS,WORLD,FARMHOUSE,UPGRADES,FARM_CENTER,PLOT_SPOTS} from './engine.js';
 export const W=1280,H=720;
 // Breakfast includes a knock at the door: the shelter prompt is answered from the kitchen.
@@ -48,7 +49,7 @@ export class Renderer {
  for(let i=0;i<900;i++){let x=L+random()*WW,y=T+random()*WH;if(x>300&&x<640&&y>210&&y<450)continue;this.rect(g,x,y,2,7,'#53613c');this.rect(g,x-2,y-2,5,4,i%3===0?'#ccb36a':'#979c64');}
  this.rect(g,345,496,37,6,'#746343');this.rect(g,348,492,31,4,'#9b8150');this.rect(g,359,490,5,12,'#b59a5f');
  // Out past the farm: a wrecked car on the town road, rocks, and a sign for anyone still heading to town.
- this.rect(g,612,878,56,22,'#7a5a48');this.rect(g,624,866,32,13,'#5e4638');this.rect(g,627,869,11,8,'#2f3a3a');this.rect(g,642,869,11,8,'#2f3a3a');this.rect(g,616,896,12,8,'#26302b');this.rect(g,650,896,12,8,'#26302b');this.rect(g,630,884,10,5,'#9b5a3c');this.rect(g,668,886,6,3,'#a39578');
+ drawVehicle(g,{kind:'car',x:612,y:866,w:62,h:38,paint:'rust',wrecked:true});
  this.rect(g,598,1136,4,30,'#786441');this.rect(g,576,1124,52,16,'#a48b56');g.fillStyle='#413b2b';g.font='bold 7px monospace';g.fillText('TOWN 12 MI',579,1135);
  for(let i=0;i<70;i++){let x=L+random()*WW,y=T+random()*WH;if(x>60&&x<1010&&y>-80&&y<620)continue;this.rect(g,x,y,10+random()*8,6+random()*4,'#7d7c6c');this.rect(g,x+2,y,8,2,'#9a9988');}
  this.forest(g,random);g.restore();}

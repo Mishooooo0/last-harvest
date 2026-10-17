@@ -1088,3 +1088,80 @@ The user asked for a cheat code menu inside the settings, with a toggle.
 - **Checks:**
   - All 160 test groups pass.
   - In the browser, on the throwaway test server: switched the menu on, used +500 scrap, typed "iron skin" and ticked Endless shells. The CHEATS tag appeared and scrap went from 50 to 550. Switching the menu off cleared the always-on cheats. No console errors.
+
+
+## Update 35 — Saturday, 17 October 2026 at 14:54 (Riyadh, UTC+03:00): recognizable pixel-art vehicles
+
+The user asked to fix the cars' shape and see a preview before installation. Codex prepared a separate copy with before/after artwork and an expedition screenshot; the user approved the new shapes. The approved drawing was then checked against Claude's latest Update 34, preserving the saves-folder, starting-kit and cheat-menu work.
+
+- **Cars:** shaped roof and cabin, sloped glass with window pillars, separate hood and trunk, door seams and handles, wheel arches, stepped round tires and hubs, lights, bumpers and muted paint variations.
+- **The team's pickup:** a raised cab and open cargo bed with planks and tied supplies. It still marks the same way home.
+- **Ambulances:** a tall medical body, distinct cab, red cross, stripe and roof light bar.
+- **Tractors:** large rear tires, smaller front wheels, a glass cab, long exposed hood, grille, exhaust and step.
+- **Searched vehicles:** an open hood or ambulance rear door makes the searched state visible. Existing search glints, progress and hover outlines remain.
+- The wreck on the farm's town road uses the same car drawing, in rusty colors with cracked glass and scuffs.
+- This is a drawing change: search rectangles, obstacles, pathfinding, vehicle placement, loot, expedition rules and saves are unchanged. No generated image assets or external services are needed.
+
+### Files and checks
+- Added `dist/vehicle-art.js`, shared by `dist/site-art.js` and `dist/renderer.js`. The version line in `dist/index.html` reads Update 35.
+- All **160 test groups pass** on the latest codebase. An isolated Chrome check renders all four vehicle types, searched and unsearched states, the before/after expedition scene, and 720p/1080p/4K/Balanced output, with finite draw coordinates, no JavaScript page errors and no changes to the rendered site state.
+- A local backup was made before installation. The installer checks source hashes first and preserves every earlier byte of this log. The player's saves were not used or modified.
+- Installed locally; this update has not been committed or pushed to GitHub.
+
+Save and refresh the game window to load the new vehicle artwork.
+
+#Written by Codex
+
+
+## Update 36 — Saturday, 17 October 2026 at 15:42 (Riyadh, UTC+03:00): fix the morning wheel lockup
+
+The user reported the game becoming unresponsive at the next wheel after the second night. Codex reproduced the failure in isolated Chrome: the colony HUD exposed Continue about 400ms after a reward was chosen, while the wheel's 4.2-second animation was still running. Continuing early closed the dialog, cancelled the transition, and left the old spinning flag set. The following morning's Spin button then ignored clicks.
+
+- The morning wheel now has a single UI owner. Continue appears only when the spin lands; repeated clicks cannot award another prize.
+- Animation completion and cancellation both release the wheel. A duration-based fallback also completes it if the browser never sends the transition event. Timers, tick frames and event listeners are cleared on landing or closing.
+- A farm loaded after its wheel reward was already awarded displays that result and can continue directly to breakfast, without another payout.
+- Reduced-motion and disabled-animation settings complete the spin immediately.
+
+### Files and checks
+- Added dist/wheel-ui.js and wheel-test.mjs; integrated the controller in dist/main.js, removed the conflicting wheel refresh from dist/colony-ui.js, and added the regression tests to npm test. The title version is 0.0.36 / Update 36.
+- All 167 test groups pass. Isolated Chrome checks passed four consecutive normal-motion spins covering all four rewards, early Continue remaining hidden, cancelled animations, missing transition events, and loading an awarded wheel. No JavaScript page errors.
+- Testing used an isolated server, separate browser storage and test saves. The player's save files were read only; no test writes went to the game's saves folder.
+- Installed locally after checking live source hashes and making a backup. Every earlier byte of UPDATES.md is preserved. This update has not been committed or pushed.
+
+Refresh the game window to load the fix, then resume the saved farm. An already awarded saved wheel can now continue into the farmhouse.
+
+#Written by Codex
+
+
+## Update 37 — Saturday, 17 October 2026 at 16:45 (Riyadh, UTC+03:00): boundary repairs, expedition queues and defense rows
+
+The user requested automatic repairs of the huge boundary fence, working expedition order queues, an automatic defend/search split in buildings, and easier placement of multiple fences and barbed wire.
+
+### Automatic boundary maintenance
+- Free constructors at the farm now take boundary maintenance jobs themselves, including during the night. Damaged sections use the existing repair behavior; missing fence sections and the scouting gate become paid priority blueprints using the configured defense price.
+- Builders work on safe sections, wait when scrap is insufficient, and defer to player orders. Nearby zombies interrupt automatic work; its paid blueprint stays available for later. Multiple builders do not create duplicate plans or charges. No builder means no automatic rebuild spending.
+- Rebuilt sections retain their boundary identity and survive save/load. The normal custom-defense limit still excludes the huge boundary.
+
+### Expedition control and automatic searching
+- Repeated right-clicks on searchable containers now queue searches instead of abandoning the current one. Shift-right-click queues movement, attacks or searches; Alt-right-click replaces the current order immediately. H holds position and clears queued tasks; heading home clears the queue and keeps everyone returning to the truck.
+- Right-click a building to enter and clear its containers automatically. Half the selected team covers the searchers, favoring loaded shotguns and combat skill for cover. Odd teams get the extra searcher; a lone explorer searches and pauses to fight nearby threats. Guards take over searching if the searchers are lost.
+- Searchers claim separate containers rather than all crowding the same chest. A container pays its loot only once. Dead attack targets and already searched queued containers are skipped, and movement orders finish before advancing to the next task.
+- Selected units show numbered order paths. Team cards show queue counts and status. The mouse handler now passes Shift/Alt expedition commands through correctly; right-drag still pans without issuing an order.
+- Search standing positions now stay clear of interior walls. The previous position below some wall-side furniture could be unreachable, leaving the searcher stuck at a doorway.
+- Queuing a farm order also preserves the active repair timer and walking state, so a later command does not reset the work already underway.
+
+### Defense placement
+- Keep clicking to place several pieces, or drag a row of fences, wire or traps. Both existing defenses and their paid blueprints provide endpoint snapping. Rows follow the drag direction; R rotates single pieces.
+- The row preview shows the actual defense, number of new sections, cost and blocked sections. Overlapping completed/planned matching sections are skipped when extending a row. Invalid, over-budget or over-limit rows place nothing and charge nothing.
+- Right-click or Esc exits placement. Alt-right-click removes a custom defense or cancels its blueprint. Right-clicking to finish no longer accidentally deletes a piece.
+- Help text and placement hints describe the controls. Existing prices.json, starting-kit.json and player saves are preserved.
+
+### Files and checks
+- New: dist/defense-planning.js and controls-test.mjs. Updated the engine/colony/perimeter rules, expedition rules and HUD, mouse handlers, site/order drawing, defense preview drawing, help/version and npm test.
+- All 184 test groups pass, including 17 new controls groups. New coverage includes automatic repair/rebuild cost and safety, multiple builders and save/load, row extension and atomic placement, sequential loot, order replacement and completion, lone survivors, loss of searchers, and generated room searches through all four door orientations.
+- Isolated Chrome checks used real mouse clicks and drags for repeated fences, wire rows, rotated wire, endpoint snapping, right-click cancellation, search queues, visible queue counts, Shift/Alt orders, H, camera panning and building clearance through real walls and doors. No JavaScript page errors. Tests used a separate server, browser storage and saves folder.
+- Installed locally as 0.0.37 after checking live source hashes and making a backup. Every earlier byte of this log is preserved, and player saves were not modified. This update has not been committed or pushed.
+
+Save your current farm if possible, refresh the game, and resume. Assign at least one constructor and keep scrap available for automatic boundary rebuilds.
+
+#Written by Codex

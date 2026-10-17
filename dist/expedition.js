@@ -137,7 +137,7 @@ export class SiteRun {
     this.zombies = site.zombies.map(z => this.makeZombie(z));
   }
   makeUnit(p, x, y, survivor = false) {
-    return { id: p.id, p, x, y, angle: -Math.PI / 2, walk: 0, moving: false, order: null, waypoint: null, goal: null, routeTimer: 0, cooldown: 0, flash: 0, swing: 0, hurt: 0, hurtCooldown: 0, status: 'Ready', survivor };
+    return { id: p.id, p, x, y, angle: -Math.PI / 2, walk: 0, moving: false, order: null, orders: [], waypoint: null, goal: null, routeTimer: 0, cooldown: 0, flash: 0, swing: 0, hurt: 0, hurtCooldown: 0, status: 'Ready', survivor };
   }
   makeZombie(z) { return { ...z, id: ++this.zombieId, angle: 0, hurt: 0, attackCooldown: .5, routeTimer: Math.random() * .5, waypoint: null, walk: Math.random() * 6, specialTimer: 3, wanderTimer: 0, goal: null }; }
 
@@ -159,18 +159,44 @@ export class SiteRun {
   buildingAt(x, y) { return this.site.buildings.find(b => inRect({ x, y }, b)) || null; }
 
   // ===== Orders: the same squad commands as on the farm =====
-  command(ids, x, y) {
+  command(ids, x, y, queued = false, replace = false) {
     const group = this.alive.filter(u => ids.includes(u.id));
-    if (!group.length || this.done) return null;
+    if (!group.length || this.done || this.leaving) return null;
     const names = group.map(u => u.p.name), list = names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+    const send = (u, order, append = false) => this.give(u, order, !replace && (queued || append && (['search','sweep'].includes(u.order?.type)||u.orders.some(o=>['search','sweep'].includes(o.type)))));
     const zombie = this.zombieAt(x, y);
-    if (zombie) { for (const u of group) this.give(u, { type: 'attack', zombieId: zombie.id }); return { type: 'attack', text: `${list}: attacking.` }; }
+    if (zombie) { for (const u of group) send(u, { type: 'attack', zombieId: zombie.id }); return { type: 'attack', text: `${list}: ${queued?'attack queued':'attacking'}.` }; }
     const container = this.containerAt(x, y);
-    if (container) { for (const u of group) this.give(u, { type: 'search', containerId: container.id }); return { type: 'search', text: `${list}: searching the ${container.kind}.` }; }
-    group.forEach((u, i) => { const angle = i * 2.4, reach = i ? 18 + i * 6 : 0; this.give(u, { type: 'move', engage: true, x: clamp(x + Math.cos(angle) * reach, 20, this.site.width - 20), y: clamp(y + Math.sin(angle) * reach, 20, this.site.height - 20) }); });
-    return { type: 'move', text: `${list}: on the way.` };
+    const building = this.buildingAt(x,y);
+    if (container || building) {
+      const guards = this.coverTeam(group), type = container?'search':'sweep';
+      for (const [i,u] of group.entries()) send(u, {type, ...(container?{containerId:container.id}:{buildingId:building.id}),role:guards.has(u.id)?'guard':'search',slot:i},true);
+      return {type,text:`${list}: ${container?'search added':'building clearance added'}. ${guards.size?`${guards.size} covering, ${group.length-guards.size} searching.`:'Searching, with pauses to fight.'} Alt-right-click replaces the current order.`};
+    }
+    group.forEach((u, i) => { const angle = i * 2.4, reach = i ? 18 + i * 6 : 0; send(u, { type: 'move', engage: true, x: clamp(x + Math.cos(angle) * reach, 20, this.site.width - 20), y: clamp(y + Math.sin(angle) * reach, 20, this.site.height - 20) }); });
+    return { type: 'move', text: `${list}: ${queued?'move queued':'on the way'}.` };
   }
-  give(u, order) { u.order = order; u.waypoint = null; u.goal = null; }
+  coverTeam(group) {
+    // Odd teams get the extra searcher; a lone explorer handles both jobs.
+    const score=u=>(u.p.tool==='gun'&&this.ammo>0?100:u.p.tool==='scythe'?50:0)+(this.game.skill?.(u.p,'combat')||0);
+    return new Set([...group].sort((a,b)=>score(b)-score(a)||a.id-b.id).slice(0,Math.floor(group.length/2)).map(u=>u.id));
+  }
+  give(u, order, queued = false) {
+    if(queued && u.order){
+      const same=o=>o.type===order.type&&['containerId','buildingId','zombieId','x','y'].every(k=>o[k]===order[k]);
+      if(!same(u.order)&&!u.orders.some(same)&&u.orders.length<32)u.orders.push(order);
+      return;
+    }
+    u.orders=[];u.order = order; u.waypoint = null; u.goal = null;
+  }
+  nextOrder(u) {
+    while(!u.order&&u.orders.length){
+      const next=u.orders.shift();
+      if(next.type==='search'&&!this.site.containers.some(c=>c.id===next.containerId&&!c.searched))continue;
+      if(next.type==='attack'&&!this.zombies.some(z=>z.id===next.zombieId&&z.hp>0))continue;
+      u.order=next;u.waypoint=null;u.goal=null;
+    }
+  }
   holdAll(ids) { for (const u of this.alive) if (ids.includes(u.id)) this.give(u, { type: 'move', x: u.x, y: u.y }); }
   // Everyone walks back to the truck; the day ends when they are all aboard.
   headHome() { if (this.done) return false; this.leaving = true; this.alive.forEach((u, i) => this.give(u, { type: 'move', engage: true, x: this.site.truck.x + ((i % 4) - 1.5) * 26, y: this.site.truck.y - 40 + Math.floor(i / 4) * 22 })); this.say('Everyone back to the truck.'); return true; }
@@ -196,7 +222,9 @@ export class SiteRun {
       this.checkBuildings(u);
       if (u.p.job === 'medic') this.medic(u, dt);
       this.fight(u);
+      this.nextOrder(u);
       if (u.order) this.followOrder(u, dt); else u.status = 'Waiting for orders';
+      this.nextOrder(u);
     }
     for (const z of this.zombies) this.runZombie(z, dt);
     const fallen = this.zombies.filter(z => z.hp <= 0);
@@ -233,6 +261,12 @@ export class SiteRun {
       for (const z of inside) z.state = 'hunt';
       this.say(inside.length ? `${u.p.name} checked the ${b.name.toLowerCase()}. ${inside.length} of the dead were inside!` : `${u.p.name} checked the ${b.name.toLowerCase()}.`);
       if (b.hider) this.recruit(b, u);
+      // Also handle walking in without explicitly clicking the building first.
+      if(!this.leaving&&(!u.order||u.order.type==='move')){
+        const group=this.alive.filter(v=>!v.orders.length&&(!v.order&&inRect(v,b,40)||v.order?.type==='move'&&inRect(v.order,b)));
+        const guards=this.coverTeam(group);
+        group.forEach((v,i)=>this.give(v,{type:'sweep',buildingId:b.id,role:guards.has(v.id)?'guard':'search',slot:i}));
+      }
     }
   }
   recruit(b, u) {
@@ -304,25 +338,70 @@ export class SiteRun {
   searchRate(u) { const p = u.p; return (1 + (this.game.skill?.(p, 'scouting') || 0) * .1) * (p.specialty === 'scouting' ? 1.3 : 1) * (p.traits?.scout || 1) / SITE.searchTime; }
   followOrder(u, dt) {
     const o = u.order;
+    if(o.role==='guard'&&['search','sweep'].includes(o.type)){
+      const partners=this.alive.filter(v=>v.order?.type===o.type&&(o.type==='search'?v.order.containerId===o.containerId:v.order.buildingId===o.buildingId));
+      if(!partners.some(v=>v.order.role!=='guard')&&partners.filter(v=>v.order.role==='guard').sort((a,b)=>a.id-b.id)[0]===u)o.role='search';
+    }
     if (o.type === 'attack') {
       let z = this.zombies.find(x => x.id === o.zombieId && x.hp > 0);
-      if (!z) { z = this.nearestZombie(u, SITE.retarget); if (z) o.zombieId = z.id; else { u.order = null; u.status = 'Waiting for orders'; return; } }
+      if (!z) { if(u.orders.length){u.order=null;return;} z = this.nearestZombie(u, SITE.retarget); if (z) o.zombieId = z.id; else { u.order = null; u.status = 'Waiting for orders'; return; } }
       const gun = this.canShoot(u), reach = gun ? 180 : this.weapon(u).range - 4;
       if (!(dist(z, u) - z.radius < reach && (!gun || clearPath(u, z, 0, this.obstacles)))) this.walkTo(u, z, 105, dt);
       u.status = 'Attacking';
     } else if (o.type === 'move') {
       const threat = o.engage && this.engageTarget(u);
       if (threat) { u.status = 'Fighting'; if (threat.chase) this.walkTo(u, threat.zombie, 100, dt); }
-      else u.status = this.walkTo(u, o, 95, dt) ? (this.leaving ? 'At the truck' : 'Holding position') : 'On the way';
+      else {const arrived=this.walkTo(u,o,95,dt);u.status=arrived?(this.leaving?'At the truck':'Holding position'):'On the way';if(arrived&&u.orders.length)u.order=null;}
     } else if (o.type === 'search') {
       const c = this.site.containers.find(x => x.id === o.containerId);
       if (!c || c.searched) { u.order = null; return; }
-      const spot = { x: c.x + c.w / 2, y: c.y + c.h + 16 };
-      if (dist(u, spot) > SITE.searchReach && !this.walkTo(u, spot, 95, dt)) { u.status = `Off to search the ${c.kind}`; return; }
-      u.status = `Searching the ${c.kind}`; u.angle = -Math.PI / 2; u.hammering = true;
-      c.progress = Math.min(1, c.progress + dt * this.searchRate(u));
-      if (c.progress >= 1) this.collect(c, u);
+      if(o.role==='guard')this.cover(u,c.inside?this.building(c.inside):null,c,dt);
+      else this.search(u,c,dt);
+    } else if (o.type === 'sweep') {
+      const b=this.building(o.buildingId),remaining=this.site.containers.filter(c=>c.inside===b?.id&&!c.searched);
+      if(!b||!remaining.length){u.order=null;return;}
+      if(!inRect(u,{x:b.x+12,y:b.y+12,w:b.w-24,h:b.h-24})){
+        o.entry||={x:b.x+b.w/2,y:b.y+b.h/2};this.walkTo(u,o.entry,95,dt);u.status='Entering '+b.name.toLowerCase();return;
+      }
+      if(o.role==='guard')this.cover(u,b,null,dt);
+      else {
+        let c=remaining.find(c=>c.id===o.containerId);
+        if(!c){
+          const claimed=new Set(this.alive.filter(v=>v!==u&&v.order?.role!=='guard').map(v=>v.order?.containerId));
+          c=remaining.filter(c=>!claimed.has(c.id)).sort((a,b)=>dist(u,a)-dist(u,b))[0];
+          o.containerId=c?.id;
+        }
+        if(c)this.search(u,c,dt);else {u.status='Covering the other searchers';this.cover(u,b,null,dt);}
+      }
     }
+  }
+  cover(u,b,c,dt){
+    const o=u.order;
+    if(!o.spot){
+      if(b){const dx=b.doorAt.x-(b.x+b.w/2),dy=b.doorAt.y-(b.y+b.h/2),len=Math.hypot(dx,dy)||1;
+        const side=(o.slot%2?1:-1)*(22+Math.floor(o.slot/2)*18);
+        o.spot={x:clamp(b.doorAt.x-dx/len*55-dy/len*side,b.x+24,b.x+b.w-24),y:clamp(b.doorAt.y-dy/len*55+dx/len*side,b.y+24,b.y+b.h-24)};
+      }else o.spot={x:clamp(c.x+c.w/2+(o.slot%2?50:-50),20,this.site.width-20),y:clamp(c.y+c.h+45,20,this.site.height-20)};
+    }
+    const threat=this.engageTarget(u);
+    if(threat&&dist(threat.zombie,o.spot)<160){if(threat.chase)this.walkTo(u,threat.zombie,100,dt);u.status='Defending the searchers';}
+    else {this.walkTo(u,o.spot,95,dt);u.status='Covering '+(b?b.name.toLowerCase():'the searchers');}
+  }
+  search(u,c,dt){
+    const threat=this.nearestZombie(u,85);
+    if(threat&&clearPath(u,threat,0,this.obstacles)){
+      u.status='Defending before searching';if(!this.canShoot(u)&&u.p.fireMode!=='hold')this.walkTo(u,threat,95,dt);return;
+    }
+    const o=u.order;
+    if(o.spotContainer!==c.id){
+      o.spotContainer=c.id;const b=c.inside&&this.building(c.inside);
+      o.searchSpot={x:c.x+c.w/2,y:c.y+c.h+16};
+      // Furniture near a wall still needs a standing point with room for the person's body.
+      if(b){o.searchSpot.x=clamp(o.searchSpot.x,b.x+24,b.x+b.w-24);o.searchSpot.y=clamp(o.searchSpot.y,b.y+24,b.y+b.h-24);}
+    }
+    if(dist(u,o.searchSpot)>SITE.searchReach&&!this.walkTo(u,o.searchSpot,95,dt)){u.status=`Off to search the ${c.kind}`;return;}
+    u.status=`Searching the ${c.kind}`;u.angle=-Math.PI/2;u.hammering=true;
+    c.progress=Math.min(1,c.progress+dt*this.searchRate(u));if(c.progress>=1)this.collect(c,u);
   }
   collect(c, u) {
     c.searched = true; this.searched++;
