@@ -3,7 +3,7 @@ import {SITE,SiteRun,createSite,ensureExpeditions,validExpeditions} from './expe
 import {ensureHomestead,validHomestead,homesteadMethods} from './homestead.js';
 import {ensureHouse,validHouse,houseMethods} from './house-systems.js';
 import {ensureFarmSystems,farmMethods,validFarmSystems} from './farm-systems.js';
-import {GameEngine,BUILDINGS,UPGRADES,GADGETS,JOBS,WORLD,FARMHOUSE,HOUSE_DOOR,DAY_LENGTH,NIGHT_LENGTH,MAX_PEOPLE,COMBAT,PLOT_SPOTS,clearPath} from './engine.js';
+import {GameEngine,BUILDINGS,UPGRADES,GADGETS,JOBS,WORLD,FARMHOUSE,HOUSE_DOOR,DAY_LENGTH,NIGHT_LENGTH,MAX_PEOPLE,COMBAT,PLOT_SPOTS,STARTING_PACK,clearPath} from './engine.js';
 
 // New systems extend the manager engine, keeping its original rules and classic modes intact.
 Object.assign(BUILDINGS,{
@@ -47,7 +47,7 @@ function validState(s){
 }
 
 export class ColonyEngine extends GameEngine{
- reset(mode,endless=false){super.reset(mode,endless);Object.assign(this.s,{campaign:false,weather:'clear',hay:0,components:0,missions:[],discoveries:{farm:true},missionHistory:[],groups:{},forecast:false,discoveredPlans:[],tutorial:true,campaignWon:false,radioContact:false});ensureFarmSystems(this.s);ensureHomestead(this.s);ensureHouse(this.s);ensureExpeditions(this.s);ensurePerimeter(this);this.run=null;this.missionId=0;this.rainTimer=0;this.medTimer=0;this.siegeSpawned=false;this.worker=null;this.fighter=null;for(const p of this.s.people)this.enrich(p);for(const p of this.s.plots){p.choice='auto';p.crop='auto';}}
+ reset(mode,endless=false){super.reset(mode,endless);Object.assign(this.s,{campaign:false,weather:'clear',hay:0,components:0,missions:[],discoveries:{farm:true},missionHistory:[],groups:{},forecast:false,discoveredPlans:[],tutorial:true,campaignWon:false,radioContact:false});ensureFarmSystems(this.s);ensureHomestead(this.s);ensureHouse(this.s);ensureExpeditions(this.s);this.s.extraTools={gun:STARTING_PACK.guns||0,scythe:STARTING_PACK.scythes||0};ensurePerimeter(this);this.run=null;this.missionId=0;this.rainTimer=0;this.medTimer=0;this.siegeSpawned=false;this.worker=null;this.fighter=null;for(const p of this.s.people)this.enrich(p);for(const p of this.s.plots){p.choice='auto';p.crop='auto';}}
  enrich(p){if(!p.traits){p.traits={...TRAITS[(p.id-1)%TRAITS.length]};p.skills={farming:0,building:0,scouting:0,combat:0,medicine:0};p.morale=70;p.orders=[];p.fireMode='normal';p.patrol=[];p.maxHp=p.traits.hp||p.maxHp;p.hp=Math.min(p.hp,p.maxHp);}ensureFarmSystems({people:[p],sites:[]});return p;}
  makePerson(...args){return this.enrich(super.makePerson(...args));}
  makePlot(spot,growth){return {...super.makePlot(spot,growth),choice:'auto',crop:'auto'};}

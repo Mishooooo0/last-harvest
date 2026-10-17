@@ -1,0 +1,19 @@
+{
+  "_readme": [
+    "What every new farm starts with. Change a number, save this file, reload the game (F5), then start a new farm.",
+    "Use whole numbers. If something here is wrong, the game keeps its built-in amount for it and the title screen says what to fix.",
+    "food is capped by the farmhouse pantry (10), water by its barrels (15), and ripeCrops by the field's first 4 plots.",
+    "extraShotguns and extraScythes join the 2 shotguns and 2 scythes in the warehouse, for good.",
+    "After changing the kit, run  node balance-sim.mjs  in the game folder: a bot plays 12 farms with it."
+  ],
+  "scrap": 50,
+  "shells": 24,
+  "seeds": 6,
+  "food": 3,
+  "water": 8,
+  "meds": 1,
+  "gasoline": 2,
+  "ripeCrops": 2,
+  "extraShotguns": 0,
+  "extraScythes": 0
+}

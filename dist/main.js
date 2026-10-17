@@ -10,13 +10,20 @@ import {installColonyUI} from './colony-ui.js';
 import {installOperations} from './operations.js';
 import {loadSettings,saveSettings,installSettings} from './settings.js';
 import {loadPrices} from './prices.js';
+import {loadStartingKit} from './starting-kit.js';
+import {openSaveStorage} from './save-files.js';
 import {createMenuScene,stepMenuScene,menuView,installMainMenu} from './menu.js';
 // Prices come from prices.json before anything reads them. Problems are listed on the title screen.
 const priceReport=await loadPrices();
+// The starting kit comes from starting-kit.json, and farm saves from the game folder's saves/ subfolder.
+const kitReport=await loadStartingKit();
+const saveFiles=await openSaveStorage({onError:()=>notice('This farm could not be saved to the game folder. Is the game server running? Start the game from its shortcut.')});
 let colonyUI=null,ops=null,expUI=null,gameRef=null;
 
 const $=id=>document.getElementById(id);
-if(priceReport.warnings.length){console.warn('prices.json:\n'+priceReport.warnings.join('\n'));const w=$('prices-warning'),shown=priceReport.warnings.slice(0,3);w.innerHTML=`<strong>prices.json</strong> ${shown.map(x=>`<span>${x.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'})[c])}</span>`).join('')}${priceReport.warnings.length>3?`<span>…and ${priceReport.warnings.length-3} more (see the browser console).</span>`:''}`;w.hidden=false;}
+// Mistakes in the hand-edited files are listed on the title screen; the game keeps its built-in values for them.
+const fileWarnings=[['prices.json',priceReport.warnings],['starting-kit.json',kitReport.warnings]].filter(([,list])=>list.length);
+if(fileWarnings.length){const esc=x=>x.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]),w=$('prices-warning');w.innerHTML=fileWarnings.map(([name,list])=>{console.warn(name+':\n'+list.join('\n'));return `<strong>${name}</strong> ${list.slice(0,3).map(x=>`<span>${esc(x)}</span>`).join('')}${list.length>3?`<span>…and ${list.length-3} more (see the browser console).</span>`:''}`;}).join('');w.hidden=false;}
 let soundOn=true,audio=null,master=null,noiseData=null,toastTimer,helpPaused=false;
 const settings=loadSettings();soundOn=settings.sound;
 const lastPlayed={},keys=new Set();
@@ -428,8 +435,9 @@ function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;const s=game
  else renderer.render(menuScene||s,now/1000,{view:menuScene?menuView(now):view(),selected,hover,ghost,box,fenceLine:pointer.drag==='fence'&&fenceStart?game.fenceLine(fenceStart,at):null});
  const dead=game.run?game.run.zombies:s.zombies;if(s.mode==='playing'&&dead.length&&Math.random()<dt*.5){const v=renderer.view,cx=v.x+W/2/v.scale,cy=v.y+H/2/v.scale;if(dead.some(z=>Math.hypot(z.x-cx,z.y-cy)<400))beep('groan');}
  hud+=dt;if(hud>.1||s.mode!==previousMode){sync();hud=0;}requestAnimationFrame(frame);}
-colonyUI=installColonyUI({game,selected,selectOnly,lookAt,notice,sync,focusGame,setPlacing,keys,start,afterLoad:()=>{rosterKey='';ops?.cancelResume();}});
+colonyUI=installColonyUI({saves:saveFiles,game,selected,selectOnly,lookAt,notice,sync,focusGame,setPlacing,keys,start,afterLoad:()=>{rosterKey='';ops?.cancelResume();}});
 expUI=installExpeditionUI({game,notice,sync,focusGame,beep,selected,selectOnly,selectFighters});
+if(saveFiles.moved)setTimeout(()=>notice(`${saveFiles.moved} saved farm${saveFiles.moved===1?'':'s'} moved from the browser into the game folder (saves/).`),600);
 ops=installOperations({game,notice,sync,focusGame,beep,packTruck:o=>expUI.openPack(o)});
 colonyUI.refresh(true);
 let menuScene=null;

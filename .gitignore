@@ -4,6 +4,8 @@
 evidence/
 # Codex's id for an OpenAI hosting project that was never published
 .openai/
+# Farm saves, written by the game server (serve.mjs). They stay on this computer.
+saves/
 node_modules/
 .scratch-*
 *.log

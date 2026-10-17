@@ -183,7 +183,8 @@ export const STARTING_PEOPLE = ['Hank', 'Mara', 'Teo', 'June'];
 export const SHOP = { ammo: 10, seeds: 6, heal: 12, repair: 18, cow: 20 };
 
 // What every new farm starts with. The starting pack screen shows the same numbers.
-export const STARTING_PACK = { scrap: 50, ammo: 24, seeds: 6, food: 3, water: 8, meds: 1, gas: 2, ripe: 2 };
+// starting-kit.json (Update 33) can change these; guns and scythes are extra tools beyond the warehouse's own.
+export const STARTING_PACK = { scrap: 50, ammo: 24, seeds: 6, food: 3, water: 8, meds: 1, gas: 2, ripe: 2, guns: 0, scythes: 0 };
 export const MAX_PEOPLE = 8;
 export const SURVIVOR_EVERY = 2;
 export const SURVIVOR_CHANCE = 0.25;

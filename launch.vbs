@@ -8,7 +8,7 @@ Dim shell, fso, root, gameUrl, checkUrl, node, browser, i
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 root = fso.GetParentFolderName(WScript.ScriptFullName)
-' Saves live in the browser per address, so always open the same one.
+' Farm saves are files in the saves folder next to this script, written by the game server.
 gameUrl = "http://localhost:4173/"
 checkUrl = "http://127.0.0.1:4173/"
 

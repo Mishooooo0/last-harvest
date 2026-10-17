@@ -4,6 +4,9 @@
 
 # Last Harvest — Updates
 
+**Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:34 (Kuwait / Riyadh time, UTC+03:00)
+**State at that moment:** Update 33 (bottom of this file): farm saves are now files in the game folder's saves/ subfolder (GitHub ignores it), and dist/starting-kit.json sets what every new farm starts with. The game server was restarted with the new code. Next: the user opens the game once so their saved farms move from the browser into saves/, then play-tests.
+
 **Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:23 (Kuwait / Riyadh time, UTC+03:00)
 **State at that moment:** Version 0.0.32 on GitHub. Today's full session report is at the bottom of this file: Codex's Updates 27–29 committed, then Update 30 (squad controls), Update 31 (playable expeditions) and Update 32 (the farmhouse from outside). 141 test groups pass; the balance bot keeps 8 of 12 farms. Next: the user play-tests.
 
@@ -1005,3 +1008,49 @@ The user asked for a full report of this session in this log. Updates 30, 31 and
   - an expedition to the abandoned farm;
   - the farmhouse by day and by night.
 - After that, tune the expeditions from what the play-test shows.
+
+
+## Update 33 — Saturday 17 October 2026, 14:34 (Riyadh, UTC+03:00): saves in the game folder, and a starting kit file
+
+The user asked where saves go (they were inside Chrome's own storage), then asked for them to live in the project folder, in a subfolder GitHub ignores, and for a JSON file that controls the starting inventory.
+
+### Saves in the game folder
+- Farm saves are now **files in `saves/`**, next to the game: `manual-1.json`, `manual-2.json`, `manual-3.json` (Farm 1–3), `auto.json` (the latest autosave) and `previous.json` (the one before it).
+- **Git ignores `saves/`** (added to `.gitignore`), so farms stay on this computer and never go to GitHub. To keep a backup, copy the folder.
+- **How it works:** the game server (`serve.mjs`) now reads and writes those files.
+  - Each save is written beside the old file and then swapped in, so a crash never leaves half a save.
+  - Only the game's own page can read or write them: another website open in the browser is refused.
+  - Only the five slot names and real JSON are accepted, up to 5 MB.
+- **Farms already in the browser move over by themselves:** the first time the game opens with an empty `saves/` folder, the farms in the browser are copied into it, and a note says how many.
+- If the game is ever opened without its server (an old server still running, or a test page), saves stay in the browser as before. The Saves screen says which one is in use.
+- The save messages and the Saves screen now name the folder. Export and Import still work for moving a single farm.
+- The game server was restarted with the new code (the desktop shortcut only starts it when it is not already running).
+
+### The starting kit file
+- New **`dist/starting-kit.json`**, edited by hand like `prices.json`. It holds: scrap, shells, seeds, food, water, meds, gasoline, ripeCrops (plots ready to harvest on day 1), extraShotguns and extraScythes.
+- Edit a number, save, reload the game (F5) and start a new farm; the starting pack screen shows the new amounts.
+- **Extra shotguns and scythes** join the warehouse's own 2 and 2, for the whole run.
+- **Limits:**
+  - food is capped by the pantry (10);
+  - water is capped by the barrels (15);
+  - ripe crops are capped by the field's first 4 plots.
+  - Going over uses the cap and shows a note.
+- **Mistakes** (an unknown name, a word or a negative number, or a typing error in the file) keep the built-in amount and are listed on the title screen, next to any prices.json problems. A typing error names its line.
+- The file starts with the built-in kit, so nothing changes until it is edited. `node balance-sim.mjs` uses the kit too.
+
+### Files and checks
+- **New:**
+  - `dist/save-files.js` (the game side of the saves folder);
+  - `dist/starting-kit.js` and `dist/starting-kit.json`;
+  - `saves-test.mjs` (6 test groups, running the real server on a throwaway folder);
+  - `starting-kit-test.mjs` (5 test groups).
+  - Both suites are in `npm test`.
+- **Changed:**
+  - `serve.mjs` (the saves API; `PORT` and `LH_SAVES` can point it elsewhere for testing);
+  - `dist/engine.js` (the starting pack gains extra shotguns and scythes);
+  - `dist/colony.js`, `dist/main.js`, `dist/colony-ui.js`, `dist/management-ui.js`;
+  - `balance-sim.mjs`, `.gitignore`, `launch.vbs` (a comment), `README.md`.
+- **Checks:**
+  - All 152 test groups pass, and the balance bot keeps 8 of 12 farms.
+  - In the browser, on a second test server with a throwaway folder, so the real `saves/` stays empty until the user's own browser moves its farms in: a new farm autosaved to `auto.json` and saved to `manual-1.json`; after a reload, Continue and the Saves screen read them back and the farm loaded. Nothing went into browser storage. No console errors.
+- Found while testing: two quick saves to the same slot could finish out of order, and could clash over the server's temporary file. Saves to one slot now go one after another, and each write gets its own temporary file. A test saves eight times in a row and checks the last one wins.

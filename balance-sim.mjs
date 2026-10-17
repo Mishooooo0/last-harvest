@@ -6,11 +6,15 @@
 import { BUILDINGS, GADGETS, SHOP } from './dist/engine.js';
 import { ColonyEngine } from './dist/colony.js';
 import { applyPrices } from './dist/prices.js';
+import { applyStartingKit } from './dist/starting-kit.js';
 import { readFileSync } from 'node:fs';
 
 // The bot plays with the prices in dist/prices.json, the same file the game reads.
 const prices = applyPrices(JSON.parse(readFileSync(new URL('./dist/prices.json', import.meta.url), 'utf8')));
 for (const warning of prices.warnings) console.log('prices.json: ' + warning);
+// And it starts each farm with the kit in dist/starting-kit.json.
+const kit = applyStartingKit(JSON.parse(readFileSync(new URL('./dist/starting-kit.json', import.meta.url), 'utf8')));
+for (const warning of kit.warnings) console.log('starting-kit.json: ' + warning);
 
 const games = Number(process.argv[2]) || 12;
 const days = Number(process.argv[3]) || 6;
