@@ -290,18 +290,19 @@ export class SiteRun {
   }
 
   // ===== People: fighting, walking, searching =====
-  weapon(u) { return COMBAT[u.p.tool || 'fists']; }
+  // An empty shotgun is swung like a club (Update 38): fist damage, and no chasing.
+  weapon(u) { return COMBAT[u.p.tool === 'gun' && !this.canShoot(u) ? 'fists' : u.p.tool || 'fists']; }
   canShoot(u) { return u.p.tool === 'gun' && (this.ammo > 0 || !!this.game.cheats?.ammo); }
   fight(u) {
     if (u.cooldown > 0 || u.p.fireMode === 'hold') return false;
-    const gun = u.p.tool === 'gun', weapon = this.weapon(u);
+    const gun = this.canShoot(u), weapon = this.weapon(u);
     const canHit = z => z.hp > 0 && !this.zombieHidden(z) && dist(z, u) - z.radius < weapon.range && (!gun || clearPath(u, z, 0, this.obstacles));
     let target = u.order?.type === 'attack' ? this.zombies.find(z => z.id === u.order.zombieId) : null;
     if (!target || !canHit(target)) { target = null; let best = Infinity; for (const z of this.zombies) if (canHit(z) && dist(z, u) < best) { target = z; best = dist(z, u); } }
     if (!target) return false;
     u.angle = Math.atan2(target.y - u.y, target.x - u.x);
+    if (u.p.tool === 'gun' && !gun && !this.dryWarned) { this.dryWarned = true; this.say('The team is out of shells! Empty shotguns only club what comes close.'); }
     if (gun) {
-      if (this.ammo <= 0 && !this.game.cheats?.ammo) { u.cooldown = .5; if (!this.dryWarned) { this.dryWarned = true; this.say('The team is out of shells!'); } return false; }
       if (!this.game.cheats?.ammo) this.ammo--; u.flash = .08;
       this.shots.push({ x1: u.x + Math.cos(u.angle) * 14, y1: u.y - 10 + Math.sin(u.angle) * 14, x2: target.x, y2: target.y - 10, life: .1 });
       this.game.emit('sound', { site: true, name: 'rifle' });
@@ -329,7 +330,7 @@ export class SiteRun {
   }
   nearestZombie(u, reach) { let best = null, bestDistance = reach; for (const z of this.zombies) { const d = dist(z, u); if (z.hp > 0 && !this.zombieHidden(z) && d < bestDistance) { best = z; bestDistance = d; } } return best; }
   engageTarget(u) {
-    if (u.p.fireMode === 'hold') return null;
+    if (u.p.fireMode === 'hold' || u.p.tool === 'gun' && !this.canShoot(u)) return null;
     const gun = this.canShoot(u), reach = gun ? COMBAT.gun.range : SITE.chase;
     let best = null, bestDistance = Infinity;
     for (const z of this.zombies) { const d = dist(z, u) - z.radius; if (z.hp > 0 && !this.zombieHidden(z) && d < reach && d < bestDistance && (!gun || clearPath(u, z, 0, this.obstacles))) { best = z; bestDistance = d; } }
@@ -390,7 +391,7 @@ export class SiteRun {
   search(u,c,dt){
     const threat=this.nearestZombie(u,85);
     if(threat&&clearPath(u,threat,0,this.obstacles)){
-      u.status='Defending before searching';if(!this.canShoot(u)&&u.p.fireMode!=='hold')this.walkTo(u,threat,95,dt);return;
+      u.status='Defending before searching';if(!this.canShoot(u)&&u.p.tool!=='gun'&&u.p.fireMode!=='hold')this.walkTo(u,threat,95,dt);return;
     }
     const o=u.order;
     if(o.spotContainer!==c.id){

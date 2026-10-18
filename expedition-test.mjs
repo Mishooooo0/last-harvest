@@ -66,6 +66,16 @@ test('gunshots draw the dead within earshot, and site kills count for the day',(
  const kills=g.s.today.kills;g.finishExpedition();assert.equal(g.s.today.kills,kills+1);assert.equal(g.s.today.expedition.kills,1);
 });
 
+test('an empty shotgun clubs what comes close, but never chases (Update 38)',()=>{
+ const g=fresh(),p=g.s.people[0];g.beginExpedition('farm',[p.id],{weapons:{[p.id]:'gun'},shells:0});quiet(g);const r=g.run,u=r.units[0],x=u.x,y=u.y;
+ Object.assign(r,{obstacles:[]});Object.assign(r.site,{buildings:[],containers:[]});
+ const beside=zombieAt(g,x+80,y);r.command([p.id],x,y-120);play(g,1);
+ assert.ok(Math.abs(u.x-x)<10&&u.y<y-20,'They keep walking where they were sent instead of chasing');
+ assert.equal(r.engageTarget(u),null);
+ r.zombies=[];const close=zombieAt(g,u.x+16,u.y);play(g,2.2);
+ assert.ok(close.hp<300,'The stock still hits what comes close');assert.equal(r.ammo,0);
+});
+
 test('meds heal on the site, and a medic patches up teammates',()=>{
  const g=fresh(),[a,b]=g.s.people;g.setJob(b.id,'medic');g.beginExpedition('farm',[a.id,b.id],{meds:1});quiet(g);
  a.hp=20;const used=g.run.useMeds(a.id);assert.ok(used.ok);assert.equal(a.hp,20+SITE.medsHeal);assert.equal(g.run.meds,0);

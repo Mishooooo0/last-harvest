@@ -19,10 +19,10 @@ UPGRADES.weapons={name:'Weapon blueprints',about:'Recovered expedition plans imp
 export const CROPS={auto:{name:'Seed-stock crop',time:1,food:null,scrap:null},potato:{name:'Potatoes',time:.65,food:2,scrap:2},corn:{name:'Trade corn',time:1.15,food:1,scrap:8},pumpkin:{name:'Pumpkins',time:1.6,food:4,scrap:6}};
 // Expedition sites (Update 31) are played on their own maps, never drawn on the farm's. Scouts still find them.
 export const PLACES={
- farm:{name:'Abandoned farm',danger:'low',blocks:[3,2],buildings:.5,zombies:7,survivor:.18,component:0,loot:{seeds:5,scrap:4,scythe:1.1,gas:.8,meds:.6,gun:.3},kinds:{walker:.7,runner:.15,crawler:.15},description:'Seeds, scrap and farm tools. The safest place to start.'},
- gas:{name:'Gas station',danger:'medium',blocks:[3,2],buildings:.5,zombies:11,survivor:.2,component:.6,loot:{gas:5,scrap:4,gun:.6,meds:.6,seeds:.5},kinds:{walker:.55,runner:.15,brute:.1,spitter:.1,crawler:.1},description:'Fuel and radio parts. Bring an armed escort.'},
+ farm:{name:'Abandoned farm',danger:'low',blocks:[3,2],buildings:.5,zombies:7,survivor:.12,component:0,loot:{seeds:5,scrap:3,gas:.8,meds:.5,scythe:.4,gun:.1},kinds:{walker:.7,runner:.15,crawler:.15},description:'Seeds, scrap and farm tools. The safest place to start.'},
+ gas:{name:'Gas station',danger:'medium',blocks:[3,2],buildings:.5,zombies:11,survivor:.2,component:.7,loot:{gas:5,scrap:5,gun:.6,meds:.6,seeds:.5},kinds:{walker:.55,runner:.15,brute:.1,spitter:.1,crawler:.1},description:'Fuel and radio parts. Bring an armed escort.'},
  medical:{name:'Roadside clinic',danger:'medium',blocks:[3,2],buildings:.67,zombies:12,survivor:.45,component:0,loot:{meds:5,scrap:3,gas:.6,seeds:.5,gun:.4},kinds:{walker:.6,runner:.2,crawler:.1,spitter:.1},description:'Medicine, and people who sheltered there.'},
- town:{name:'Silent town',danger:'high',blocks:[4,3],buildings:.75,zombies:18,survivor:.4,component:.6,loot:{scrap:5,gas:2,meds:2,seeds:1.5,gun:1.2,scythe:.5},kinds:{walker:.5,runner:.2,brute:.15,spitter:.08,crawler:.07},description:'Everything worth having, and the most dead.'}
+ town:{name:'Silent town',danger:'high',blocks:[4,3],buildings:.75,zombies:18,survivor:.5,component:.6,loot:{scrap:9,meds:2.5,gas:1.5,gun:1.2,seeds:.5,scythe:.3},kinds:{walker:.4,runner:.3,brute:.15,spitter:.1,crawler:.05},description:'Everything worth having, and the most dead.'}
 };
 export const TRAITS=[
  {good:'Craftsperson',weak:'Slow walker',build:1.18,speed:.9},

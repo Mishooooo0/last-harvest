@@ -19,7 +19,7 @@ Settings → Cheats → switch on the **Cheat menu**. It has always-on cheats (n
 
 - **Prices:** edit `dist/prices.json`, save, and reload the game. A mistake in the file falls back to the built-in prices and is shown on the title screen.
 - **Starting kit:** edit `dist/starting-kit.json` (scrap, shells, seeds, food, water, meds, gasoline, ripe crops, extra shotguns and scythes), save, reload, and start a new farm. Mistakes show on the title screen the same way.
-- **Check the balance:** run `node balance-sim.mjs`. A bot plays 12 farms for 6 nights with the current prices and starting kit.
+- **Check the balance:** run `node balance-sim.mjs`. A bot plays 12 farms for 6 nights with the current prices and starting kit, sending expeditions on calm days. The report ends with an expedition section: survival with and without expeditions, and the average loot and danger of a trip to each place (the place numbers are `PLACES` in `dist/colony.js`).
 
 ## Tests
 

@@ -3,6 +3,8 @@ import {GameEngine,GADGETS,FENCE} from './engine.js';
 // The existing world keeps its coordinates; the enlarged clearing includes every building lot.
 export const FARM_BOUNDARY=Object.freeze({left:-432,top:-192,right:1248,bottom:720});
 export const SCOUT_GATE=Object.freeze({x:504,y:720});
+// Automatic rebuilds (Update 37) never spend the last 20 scrap: that is one farmhouse repair (Update 38).
+export const BOUNDARY_RESERVE=20;
 export const GATE_INSIDE=Object.freeze({x:504,y:680});
 export const GATE_OUTSIDE=Object.freeze({x:504,y:760});
 const inside=p=>p.x>FARM_BOUNDARY.left&&p.x<FARM_BOUNDARY.right&&p.y>FARM_BOUNDARY.top&&p.y<FARM_BOUNDARY.bottom;
@@ -71,7 +73,7 @@ export const perimeterMethods={
     const built=s.fences.find(f=>occupies(f,slot)),site=s.sites.find(site=>site.kind==='gadget'&&occupies({...site.rect,perimeter:site.perimeter},slot));
     if(site)return claims.some(o=>o.siteId===site.id)?null:{site,slot};
     if(built)return built.hp<built.maxHp&&!claims.some(o=>o.gadgetId===built.id)?{built,slot}:null;
-    if(s.traps.some(t=>overlap(t,slot))||s.scrap<GADGETS[slot.kind].cost)return null;
+    if(s.traps.some(t=>overlap(t,slot))||s.scrap-GADGETS[slot.kind].cost<BOUNDARY_RESERVE)return null;
     return {slot};
    }).filter(Boolean).sort((a,b)=>(a.built?1:0)-(b.built?1:0)||distance(a.slot)-distance(b.slot));
    const target=options[0];if(!target)continue;

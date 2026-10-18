@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {ColonyEngine,PLACES} from './dist/colony.js';
 import {SiteRun,createSite} from './dist/expedition.js';
 import {GADGETS} from './dist/engine.js';
+import {BOUNDARY_RESERVE} from './dist/perimeter.js';
 let passed=0;const test=(name,fn)=>{fn();passed++;console.log('PASS '+name);};
 const fresh=()=>{const g=new ColonyEngine();g.start(true);g.confirmPhases=true;g.s.phaseDuration=1e6;g.s.scrap=1000;g.s.food=30;g.s.water=30;for(const p of g.s.people)g.setJob(p.id,'rest');return g;};
 const play=(g,seconds)=>{for(let i=0;i<Math.ceil(seconds*45);i++)g.update(1/45);};
@@ -22,9 +23,14 @@ test('builders mend damaged boundary sections automatically without repeatedly c
 });
 test('automatic rebuilds wait for safety, scrap and a free builder, and resume at night',()=>{
  const g=fresh(),p=builder(g),gone=section(g);g.damageGadget(gone,1000);g.s.scrap=0;play(g,1);assert.equal(g.s.sites.length,0);
- g.s.scrap=10;g.giveOrder(p,{type:'move',x:p.x,y:p.y});play(g,1);assert.equal(g.s.sites.length,0);g.clearOrders([p.id]);
- g.spawnZombie();const z=g.s.zombies[0];Object.assign(z,{x:24,y:740,speed:0,hp:1e6});play(g,1);assert.equal(g.s.sites.length,0);assert.equal(g.s.scrap,10);
- g.s.zombies=[];g.s.phase='night';g.s.wave={total:1,spawned:0,horde:false};g.spawnTimer=1e9;play(g,8);assert(section(g));assert.equal(g.s.scrap,8);
+ g.s.scrap=30;g.giveOrder(p,{type:'move',x:p.x,y:p.y});play(g,1);assert.equal(g.s.sites.length,0);g.clearOrders([p.id]);
+ g.spawnZombie();const z=g.s.zombies[0];Object.assign(z,{x:24,y:740,speed:0,hp:1e6});play(g,1);assert.equal(g.s.sites.length,0);assert.equal(g.s.scrap,30);
+ g.s.zombies=[];g.s.phase='night';g.s.wave={total:1,spawned:0,horde:false};g.spawnTimer=1e9;play(g,8);assert(section(g));assert.equal(g.s.scrap,28);
+});
+test('automatic rebuilds keep 20 scrap back for a farmhouse repair (Update 38)',()=>{
+ const g=fresh();builder(g);const gone=section(g);g.damageGadget(gone,1000);g.s.scrap=BOUNDARY_RESERVE+GADGETS.fence.cost-1;play(g,1);
+ assert.equal(g.s.sites.length,0);assert.equal(g.s.scrap,BOUNDARY_RESERVE+GADGETS.fence.cost-1);
+ g.s.scrap=BOUNDARY_RESERVE+GADGETS.fence.cost;play(g,8);assert(section(g));assert.equal(g.s.scrap,BOUNDARY_RESERVE);
 });
 test('a new threat interrupts automatic construction without losing its paid blueprint',()=>{
  const g=fresh(),p=builder(g),gone=section(g);g.damageGadget(gone,1000);play(g,.1);const site=g.s.sites.find(s=>s.perimeter===gone.perimeter);assert(site);const scrap=g.s.scrap;

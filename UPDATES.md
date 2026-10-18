@@ -4,6 +4,9 @@
 
 # Last Harvest — Updates
 
+**Where we stopped (latest, newest first):** Sunday 18 October 2026, 15:12 (Kuwait / Riyadh time, UTC+03:00)
+**State at that moment:** Update 38 (bottom of this file): the balance bot now goes on expeditions and reports on every place; the places' loot and danger are tuned; an empty shotgun no longer walks people into the dead; automatic boundary rebuilds keep 20 scrap back. The bot keeps 11 of 12 farms (it was 6 after Codex's Updates 35–37, which are committed as 6dee362). Next: the user play-tests expeditions.
+
 **Where we stopped (latest, newest first):** Saturday 17 October 2026, 14:40 (Kuwait / Riyadh time, UTC+03:00)
 **State at that moment:** Update 34 (bottom of this file): a cheat menu in Settings, with its own on/off toggle and cheat codes. Before it, Update 33 put farm saves in the game folder's saves/ subfolder and added starting-kit.json. Next: the user opens the game once (their saved farms move into saves/), then play-tests.
 
@@ -1165,3 +1168,77 @@ The user requested automatic repairs of the huge boundary fence, working expedit
 Save your current farm if possible, refresh the game, and resume. Assign at least one constructor and keep scrap available for automatic boundary rebuilds.
 
 #Written by Codex
+
+
+## Update 38 — Sunday 18 October 2026, 15:12 (Riyadh, UTC+03:00): the balance bot goes on expeditions, tuned places, two fixes
+
+The user asked to teach `balance-sim.mjs` to use the playable expeditions (Update 31), then tune their loot and danger from what it shows. The agreed bar: the bot still keeps at least 8 of 12 farms alive. Expeditions should be worth the day but risky: the abandoned farm safe and modest, the town dangerous but rich.
+
+### First: why the bot had dropped to 6 of 12
+- After Codex's Updates 35–37, the bot kept 6 of 12 farms instead of 8. The cause was Update 37's automatic boundary rebuilds. A free builder paid 2 scrap for every smashed boundary section, by day and by night, down to the last scrap: 40–60 rebuilds per farm. The farms that fell were the ones left with under 18 scrap for a farmhouse repair during a horde night. Shells were never short. With the automatic upkeep switched off, the bot gave exactly the results from before Update 37.
+- **Fix (agreed with the user):** automatic rebuilds always keep 20 scrap back, about one farmhouse repair. Mending damaged sections is unchanged. With this, the bot keeps 10 of 12 farms without expeditions.
+
+### The bot goes on expeditions
+- **When:** from day 2, never on a horde day, and only if breakfast is still covered after packing.
+- **Who and what:** two fighters (never the farmer or the builder), each with a shotgun, plus the default 24 shells and 1 med.
+- **Where:** the richest place found so far. That is the town first, then the gas station or the clinic (whichever was visited less), then the abandoned farm.
+- **On the site:**
+  - it walks into the nearest building or yard, and the team's building clearance searches the containers;
+  - it fights what hunts it, and uses meds below half health;
+  - it heads home at 4:00, when someone drops below 40% health, or when it is low on shells and something is hunting it;
+  - while the team is away, it gives no orders at the farm, like a player.
+- **Until dawn:** it now plays until the dawn after the last night. Before, a fixed number of steps could stop a farm in the middle of night 6 and still count it alive.
+- **The report:** it keeps the line "N of 12 farms survived 6 nights", now for the bot with expeditions. A new Expeditions section gives:
+  - survival with and without expeditions;
+  - for each place (with the bot always going there), the average per trip: loot, team deaths and injuries, health lost, shells used, containers searched, time on the site, and why the team came home.
+- **Speed:** the six bot versions run side by side on the computer's processor cores, so a full report takes about 3 minutes.
+
+### Bug found: empty shotguns
+- With no shells left, a shotgun could not hit anything. Its holder still chased zombies on an attack-move or Head home, walked up to them and was bitten to death. Nearly every expedition death in the bot's games happened this way.
+- **Fix:** an empty shotgun is swung like a club (fist damage) at whatever comes close, and its holder no longer chases: they keep walking where they were sent. The "out of shells" message says so.
+
+### Tuned places (`PLACES` in `dist/colony.js`)
+| Place | What changed |
+|---|---|
+| Abandoned farm | survivor chance .18 → .12; loot weights: scrap 4 → 3, meds .6 → .5, scythe 1.1 → .4, shotgun .3 → .1 |
+| Gas station | radio part chance .6 → .7; loot weight for scrap 4 → 5 |
+| Roadside clinic | unchanged |
+| Silent town | survivor chance .4 → .5; loot weights: scrap 5 → 9, meds 2 → 2.5, gas 2 → 1.5, seeds 1.5 → .5, scythe .5 → .3; the dead: walkers .5 → .4, runners .2 → .3, spitters .08 → .1, crawlers .07 → .05 (still 18 of them, brutes still .15) |
+
+`SITE` (spawn timing, noise, search time) is unchanged. Those numbers are shared by every place, and the per-place numbers were enough. Trips end because shells run low, long before time runs out.
+
+### Before and after (24 farms each, the bot always going to one place; per trip)
+Before = with the boundary fix, but with the empty-shotgun bug and the old place numbers.
+
+| Place | Scrap | Seeds | Gas | Meds | Weapons | Survivors | Radio parts | Team deaths | Health lost | Farms alive |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Abandoned farm, before | 16.4 | 10.2 | 1.3 | 0.48 | 0.89 | 0.43 | 0 | 0 | 7 | 16 of 24 |
+| Abandoned farm, after | 11.2 | 10.8 | 1.4 | 0.52 | 0.36 | 0.24 | 0 | 0 | 5 | 21 of 24 |
+| Gas station, before | 7.9 | 0.5 | 4.7 | 0.15 | 0.20 | 0.15 | 0.30 | 0.24 | 30 | 11 of 24 |
+| Gas station, after | 8.7 | 0.5 | 4.3 | 0.16 | 0.19 | 0.23 | 0.32 | 0.02 | 14 | 16 of 24 |
+| Roadside clinic, before | 9.3 | 0.7 | 0.5 | 2.98 | 0.26 | 0.70 | 0 | 0.28 | 43 | 13 of 24 |
+| Roadside clinic, after | 9.3 | 0.6 | 0.6 | 2.91 | 0.26 | 0.70 | 0 | 0 | 21 | 19 of 24 |
+| Silent town, before | 11.0 | 2.4 | 1.3 | 0.87 | 0.77 | 0.47 | 0.11 | 0.26 | 44 | 14 of 24 |
+| Silent town, after | 15.7 | 0.4 | 0.9 | 1.16 | 0.66 | 0.36 | 0.05 | 0.02 | 32 | 20 of 24 |
+
+- The bot going to the best place found: 16 of 24 farms before, 22 of 24 after. Without expeditions: 18 of 24 both times.
+- The 12-farm headline (`node balance-sim.mjs`): 8 of 12 before, **11 of 12** after; 10 of 12 without expeditions.
+
+### Good to know
+- With the fix, a careful team almost never dies. The danger shows as injuries, used-up shells and trips cut short: the town does the most harm (32 health lost per trip, against 5 at the abandoned farm). A greedy team can still die. If the town should kill more often, raise its zombies or runners; more zombies mostly means fewer containers searched.
+- Found while testing, not fixed: a survivor found inside a building can appear overlapping a wall, and then stays stuck until sunset. The team waits at the truck, and everyone still gets home at dusk.
+
+### Files and checks
+- **Changed:**
+  - `balance-sim.mjs`: the expedition bot and its report;
+  - `dist/perimeter.js`: `BOUNDARY_RESERVE`;
+  - `dist/expedition.js`: empty shotguns;
+  - `dist/colony.js`: `PLACES`;
+  - `dist/index.html`: help text (rebuilds keep 20 scrap) and version 0.0.38 / Update 38;
+  - `controls-test.mjs`: the rebuild test now has 30 scrap, plus a new reserve test;
+  - `expedition-test.mjs`: a new empty-shotgun test.
+- All 186 test groups pass. The new empty-shotgun test fails on the old code.
+- `node balance-sim.mjs`: 11 of 12 farms survived 6 nights.
+
+Refresh the game window to load the update. Saved farms keep working.
+Also changed: `README.md`, where the balance check now mentions the expedition report.
