@@ -33,3 +33,15 @@ Settings → Cheats → switch on the **Cheat menu**. It has always-on cheats (n
   - **Drawing:** `renderer.js`, `colony-renderer.js`, `graphics.js`, `world-art.js`, `interior-art.js`, `house-art.js`, `site-art.js` (expedition sites).
   - **Screens:** `menu.js`, `opening.js`, `operations.js`, `expedition-ui.js`, `management-ui.js`, `house-ui.js`, `colony-ui.js`, `settings.js`.
 - `UPDATES.md` is the full history of changes, one update after another. Nothing in it is ever deleted.
+
+## Survival briefing
+
+Open **Briefing** from the command panel during play or while paused. Review breakfast reserves, farmhouse health, ammunition, wounded survivors, construction staffing and armed defenders at home. Expand the first-farm checklist for starting objectives. The farm pauses during review and returns to its previous running state on close or Escape. These checks are advisory, not a guarantee of surviving a wave.
+
+## Expedition overhaul
+
+Expeditions now have selectable approaches and contracts, weighted cargo with recoverable overflow, rising alert from noise, and a five-second extraction at the truck. Open **Cargo & field log** on site to manage supplies. Missing the sunset deadline away from the truck costs bulk cargo. See [EXPEDITION_SYSTEM.md](EXPEDITION_SYSTEM.md) for the complete rules and validation notes.
+
+## Farm command
+
+Open **Farm command** to configure opt-in ranked survivor jobs, emergency assignments, construction order and repair priorities, fixed guard posts, and farmhouse fallback. The panel also shows committed construction materials and a nighttime readiness checklist. See [FARM_COMMAND.md](FARM_COMMAND.md). No fatigue system or farming overhaul is included.

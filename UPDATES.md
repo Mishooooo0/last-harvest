@@ -1242,3 +1242,18 @@ Before = with the boundary fix, but with the empty-shotgun bug and the old place
 
 Refresh the game window to load the update. Saved farms keep working.
 Also changed: `README.md`, where the balance check now mentions the expedition report.
+
+
+## Survival briefing — October 26, 2026
+
+Added a responsive command-panel briefing with six readiness checks, night forecast, and expandable first-farm checklist. Reports account for expedition absences and preserve pause state. Added read-only report regression tests to npm test. Existing rule tests pass. Browser visual verification was unavailable because Chromium is not installed in the execution environment.
+
+## Expedition overhaul — October 26, 2026
+
+Reworked expedition planning and the on-site decision loop: Balanced, Quiet entry and Salvage crew approaches; supply, survey and threat-reduction contracts; weighted cargo with local overflow recovery; noise-driven alert and reinforcement pressure; a whole-squad truck extraction countdown; sunset warnings and emergency cargo losses. Retreat orders no longer chase enemies. New preparation selectors, objective/alert/cargo HUD, paused cargo manifest with field log, and richer return reports expose the new rules. Contract payments persist with mission results and are applied once. Invalid kit values are rejected before spending resources. Existing farm saves remain supported; active expeditions still cannot be saved.
+
+Validation: npm test passes, including nine new overhaul regression groups. Browser visual validation is outstanding because Chromium installation/download was unavailable. Full mechanics and manual checks are documented in EXPEDITION_SYSTEM.md.
+
+## Farm command overhaul — October 26, 2026
+
+Added an opt-in command layer for ranked survivor jobs and emergency defense/repair assignments, with direct-order and expedition precedence. Added ordered construction, visible committed/refundable scrap, repair-first behavior, guard posts, persistent farmhouse fallback, breach transition notices, and a night readiness checklist. Integrated the Command tab into the existing farm management dialog and main command button. Added backward-compatible defaults and validation for saved command preferences. Nine new rule-test groups cover these features. Fatigue and farming mechanics are unchanged. Browser visual testing remains outstanding; manual acceptance checks are in FARM_COMMAND.md.

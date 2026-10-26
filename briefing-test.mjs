@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {ColonyEngine} from './dist/colony.js';
+import {survivalBriefing} from './dist/briefing.js';
+const game=new ColonyEngine(()=>{});game.start();
+const before=JSON.parse(game.serialize()).s;const initial=survivalBriefing(game);assert.equal(initial.cards.length,6);assert.deepEqual(JSON.parse(game.serialize()).s,before);
+game.s.food=0;game.s.water=0;game.s.ammo=0;game.s.farmHp=1;game.s.people[0].hp=1;
+const report=survivalBriefing(game);assert.ok(report.issues>=4);assert.equal(report.cards[0].ok,false);
+game.s.people.forEach(p=>{p.job='defender';p.tool='gun';p.expeditionId=1;});assert.equal(survivalBriefing(game).cards[5].ok,false);
+game.s.people[0].expeditionId=null;assert.equal(survivalBriefing(game).cards[5].ok,true);
+game.s.food=game.s.water=game.s.people.length;assert.equal(survivalBriefing(game).cards[0].ok,true);
+console.log('PASS briefing: read-only report, shortages, critical health, expedition-aware defense, breakfast threshold');

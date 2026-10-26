@@ -31,15 +31,15 @@ test('the farm runs its day in the background, and the team gets home at dusk',(
  play(g,30);
  assert.ok(Math.abs(g.s.phaseTime-30*DAY_LENGTH/SITE.length)<.5,'The farm day passes at the site rate');
  assert.ok(g.run.time>29);
- g.run.headHome();const u=g.run.units[0];Object.assign(u,{x:g.run.site.truck.x,y:g.run.site.truck.y-30});play(g,.1);
+ g.run.headHome();const u=g.run.units[0];Object.assign(u,{x:g.run.site.truck.x,y:g.run.site.truck.y-30});play(g,5.2);
  assert.equal(g.run,null);assert.equal(m.stage,'done');
  assert.equal(g.s.phase,'day');assert.equal(g.s.phaseReady,true,'Home at dusk, waiting for the night');
  assert.equal(p.expeditionId,null);assert.equal(p.away,0);assert.ok(Math.abs(p.x-GATE_INSIDE.x)<60&&Math.abs(p.y-GATE_INSIDE.y)<60,'They come in through the south gate');
  assert.ok(g.canSave());
 });
 
-test('the five-minute limit sends the team home with what they carry',()=>{
- const g=fresh();g.beginExpedition('farm',[1]);quiet(g);g.run.bag.scrap=7;g.run.time=SITE.length-.5;const scrap=g.s.scrap;
+test('the five-minute limit preserves cargo when the team is already at the truck',()=>{
+ const g=fresh();g.beginExpedition('farm',[1]);quiet(g);Object.assign(g.run.units[0],g.run.site.truck);g.run.bag.scrap=7;g.run.time=SITE.length-.5;const scrap=g.s.scrap;
  play(g,1);
  assert.equal(g.run,null);assert.equal(g.s.scrap,scrap+7);assert.equal(g.s.phaseReady,true);
 });

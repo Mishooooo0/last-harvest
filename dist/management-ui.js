@@ -1,3 +1,4 @@
+import {commandHtml,commandClick,commandChange} from './farm-command-ui.js';
 import {SPECIALTIES,FARM_EVENTS} from './farm-systems.js';
 import {HOMESTEAD} from './homestead.js';
 import {createHousePanel,installHouseHotspots} from './house-ui.js';
@@ -11,8 +12,8 @@ const stock=(label,value,detail,capacity)=>'<div class="homestead-stock"><span>'
 
 export function installFarmManagement({saveWhere='browser',game,store,load,selected,notice,sync,focusGame}){
  const $=id=>document.getElementById(id);let page='people',resumeAfter=false,personId=null;
- const button=document.createElement('button');button.type='button';button.id='farm-life-btn';button.className='cmd';button.innerHTML='<svg class="icon"><use href="#i-anvil"/></svg><span>Construction</span>';button.setAttribute('aria-label','Construction queue');button.title='Construction queue · Farm life happens at breakfast in the farmhouse';$('ops-btn').after(button);
- const dialog=document.createElement('dialog');dialog.id='farm-management';dialog.className='help-dialog management-dialog';dialog.setAttribute('aria-labelledby','management-title');dialog.innerHTML='<div class="help-modal"><header class="management-head"><h2 id="management-title">Farm life</h2><button id="management-close" type="button" class="icon-button" aria-label="Close farm management">×</button></header><nav class="management-tabs" aria-label="Farm management"><button type="button" data-page="house">House</button><button type="button" data-page="kitchen">Kitchen</button><button type="button" data-page="animals">Animals</button><button type="button" data-page="people">Survivors</button><button type="button" data-page="events">Events</button><button type="button" data-page="construction">Construction</button><button type="button" data-page="saves">Saves</button></nav><div id="management-content"></div><p id="management-message" role="status" aria-live="polite"></p><footer class="management-foot"><button id="management-plan" class="primary-button" type="button" hidden>Plan the day →</button></footer></div>';document.body.append(dialog);
+ const button=document.createElement('button');button.type='button';button.id='farm-life-btn';button.className='cmd';button.innerHTML='<svg class="icon"><use href="#i-anvil"/></svg><span>Farm command</span>';button.setAttribute('aria-label','Farm command center');button.title='Survivor priorities, construction queue and defense coordination';$('ops-btn').after(button);
+ const dialog=document.createElement('dialog');dialog.id='farm-management';dialog.className='help-dialog management-dialog';dialog.setAttribute('aria-labelledby','management-title');dialog.innerHTML='<div class="help-modal"><header class="management-head"><h2 id="management-title">Farm life</h2><button id="management-close" type="button" class="icon-button" aria-label="Close farm management">×</button></header><nav class="management-tabs" aria-label="Farm management"><button type="button" data-page="house">House</button><button type="button" data-page="kitchen">Kitchen</button><button type="button" data-page="animals">Animals</button><button type="button" data-page="people">Survivors</button><button type="button" data-page="events">Events</button><button type="button" data-page="command">Command</button><button type="button" data-page="construction">Construction</button><button type="button" data-page="saves">Saves</button></nav><div id="management-content"></div><p id="management-message" role="status" aria-live="polite"></p><footer class="management-foot"><button id="management-plan" class="primary-button" type="button" hidden>Plan the day →</button></footer></div>';document.body.append(dialog);
  const message=text=>$('management-message').textContent=text;
  const housePanel=createHousePanel({game,dialog,render,message,sync});
  const houseButton=document.createElement('button');houseButton.type='button';houseButton.id='house-rooms';houseButton.className='house-open-button';houseButton.textContent='House & rooms →';document.querySelector('.house-heading').append(houseButton);houseButton.addEventListener('click',()=>{open('house');housePanel.focus('overview');});
@@ -27,7 +28,9 @@ export function installFarmManagement({saveWhere='browser',game,store,load,selec
  }
  function renderBonds(p){const bonds=game.homesteadStatus().relationships.filter(b=>b.a===p.id||b.b===p.id);return '<section class="survivor-bonds" aria-labelledby="survivor-bonds-title"><h4 id="survivor-bonds-title">Life together</h4><p class="pop-note">Shared breakfasts and completed expeditions build trust. Close company adds up to '+HOMESTEAD.bondMoraleCap+' morale.</p>'+(bonds.length?'<ul>'+bonds.map(b=>{const other=b.a===p.id?b.names[1]:b.names[0];return '<li><strong>'+esc(other)+'</strong><span>'+esc(b.label)+' <meter min="0" max="10" value="'+b.score+'" aria-label="Trust with '+esc(other)+'"></meter><span class="bond-score">'+Math.round(b.score)+'/10</span></span></li>';}).join('')+'</ul>':'<p class="pop-note">Bonds will grow as this survivor spends time with the others.</p>')+'</section>';}
  function render(){const s=game.s,active=['playing','paused','house'].includes(s.mode),morning=s.mode==='house';if(!morning&&['house','kitchen','animals','people','events'].includes(page))page='construction';dialog.querySelectorAll('[data-page]').forEach(b=>{b.hidden=!morning&&['house','kitchen','animals','people','events'].includes(b.dataset.page);});$('management-plan').hidden=!morning;$('management-title').textContent=page==='saves'?'Saved farms':morning?'Farm life':'Construction';dialog.querySelectorAll('[data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===page);b.setAttribute('aria-pressed',String(b.dataset.page===page));});
-  if(page==='house'){
+  if(page==='command'){
+   $('management-title').textContent='Farm command';$('management-content').innerHTML=commandHtml(game);
+  }else if(page==='house'){
    $('management-content').innerHTML=housePanel.html();
   }else if(page==='kitchen'){
    $('management-content').innerHTML=renderKitchen();
@@ -47,13 +50,14 @@ export function installFarmManagement({saveWhere='browser',game,store,load,selec
   }
  }
  function open(next='people'){if(dialog.open){page=next;render();return;}if(document.querySelector('dialog[open]'))return;page=next;resumeAfter=game.s.mode==='playing';if(resumeAfter)game.pause();render();message('');dialog.showModal();}
- button.addEventListener('click',()=>open('construction'));
+ button.addEventListener('click',()=>open('command'));
  // Breakfast leads into Farm life; its last step is planning the day.
  $('house-farm-life').addEventListener('click',()=>open(game.s.farmEvent?'events':'kitchen'));
  $('management-plan').addEventListener('click',()=>{dialog.close();$('house-start').click();});$('management-close').addEventListener('click',()=>dialog.close());
  dialog.addEventListener('close',()=>{if(resumeAfter&&game.s.mode==='paused'&&!document.querySelector('dialog[open]'))game.resume();resumeAfter=false;sync();focusGame();});
  function exportRaw(raw){const blob=new Blob([raw],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='last-harvest-day-'+(JSON.parse(raw).s.day)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  dialog.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;try{
+  if(commandClick(game,b)){render();sync();return;}
   if(housePanel.handleClick(e))return;
   if(b.hasAttribute('data-house-original-kitchen')){page='kitchen';render();return;}
   if(b.dataset.page){page=b.dataset.page;message('');render();}
@@ -68,7 +72,7 @@ export function installFarmManagement({saveWhere='browser',game,store,load,selec
   if(b.dataset.exportSlot)exportRaw(store.read(b.dataset.exportSlot));
   if(b.id==='export-current')exportRaw(game.serialize());
  }catch{message('Could not complete this action. Browser storage may be full or unavailable.');}sync();});
- dialog.addEventListener('change',async e=>{housePanel.handleChange(e);if(e.target.id!=='farm-import')return;const file=e.target.files[0];if(!file)return;try{if(file.size>5_000_000)throw new Error('This file is too large to be a farm save.');const raw=await file.text(),probe=new ColonyEngine(),result=probe.restore(raw);if(result.error)throw new Error(result.error);store.write(raw,'manual-3');resumeAfter=false;load(raw);notice('Imported farm loaded paused and saved to Farm 3.');}catch(error){message(error.message||'The save could not be imported.');e.target.value='';}});
+ dialog.addEventListener('change',async e=>{if(commandChange(game,e)){const key=['commandPolicy','guardPost','workEnable','workRank'].find(k=>e.target.dataset[k]),value=e.target.dataset[key],rank=e.target.dataset.rank;render();if(key){const attr='data-'+key.replace(/[A-Z]/g,c=>'-'+c.toLowerCase());dialog.querySelector('['+attr+'="'+value+'"]'+(rank!==undefined?'[data-rank="'+rank+'"]':''))?.focus();}sync();return;}housePanel.handleChange(e);if(e.target.id!=='farm-import')return;const file=e.target.files[0];if(!file)return;try{if(file.size>5_000_000)throw new Error('This file is too large to be a farm save.');const raw=await file.text(),probe=new ColonyEngine(),result=probe.restore(raw);if(result.error)throw new Error(result.error);store.write(raw,'manual-3');resumeAfter=false;load(raw);notice('Imported farm loaded paused and saved to Farm 3.');}catch(error){message(error.message||'The save could not be imported.');e.target.value='';}});
  // A small persistent indicator makes pending choices discoverable without interrupting a fight.
  let previous='';setInterval(()=>{const label=game.s.farmEvent?'kitchen · animals · people · 1 new event':'kitchen · animals · people';if(label!==previous){previous=label;$('house-farm-life').querySelector('small').textContent=label;$('house-farm-life').classList.toggle('event-ready',!!game.s.farmEvent);}},500);
  return {open};

@@ -1,3 +1,4 @@
+import {APPROACHES,CARGO_WEIGHTS,cargoWeight,objectiveProgress,alertLevel} from './expedition-rules.js';
 // Playable expeditions (Update 31). The team spends the whole day on a site away from the farm:
 // SITE.length seconds of searching buildings, looting and fighting, while the farm runs its day
 // in the background with the jobs set before leaving. Rules only; site-art.js draws the site.
@@ -126,6 +127,9 @@ export function createSite(placeId, place, { visit = 0, seed = 1, day = 1, bonus
 export class SiteRun {
   constructor(game, mission, site, team) {
     Object.assign(this, { game, mission, site, time: 0, ammo: mission.kit.shells, meds: mission.kit.meds, medsUsed: 0, leaving: false, done: false, reason: '' });
+    this.approach = mission.kit.approach || 'balanced'; this.contract = mission.kit.contract || 'scavenging';
+    this.profile = APPROACHES[this.approach]; this.capacity = this.profile.capacity + Math.max(0,team.length-1)*12;
+    this.alert = 0; this.extraction = 0; this.extractionNeeded = 5; this.cargoLost = {}; this.objectiveAnnounced = false; this.warnings = new Set();
     this.bag = { scrap: 0, seeds: 0, gas: 0, meds: 0, component: 0, gun: 0, scythe: 0 };
     this.foundTools = { gun: 0, scythe: 0 };
     Object.assign(this, { found: [], deaths: [], kills: 0, searched: 0, hurt: 0, log: [], floaters: [], shots: [], particles: [], zombieId: 0, spawnTimer: SITE.spawnFirst });
@@ -142,6 +146,10 @@ export class SiteRun {
   makeZombie(z) { return { ...z, id: ++this.zombieId, angle: 0, hurt: 0, attackCooldown: .5, routeTimer: Math.random() * .5, waypoint: null, walk: Math.random() * 6, specialTimer: 3, wanderTimer: 0, goal: null }; }
 
   get alive() { return this.units.filter(u => u.p.hp > 0); }
+  objective() { return objectiveProgress(this); }
+  cargoWeight() { return cargoWeight(this.bag); }
+  alertLabel() { return alertLevel(this.alert); }
+  dropCargo(type) { if(this.done || !CARGO_WEIGHTS[type] || !this.bag[type])return false; this.bag[type]--; this.say(`Discarded 1 ${LOOT_LABELS[type]} to free cargo space.`); return true; }
   timeLeft() { return Math.max(0, SITE.length - this.time); }
   building(id) { return this.site.buildings.find(b => b.id === id); }
   // Inside a building that nobody has checked yet, things stay hidden.
@@ -199,10 +207,11 @@ export class SiteRun {
   }
   holdAll(ids) { for (const u of this.alive) if (ids.includes(u.id)) this.give(u, { type: 'move', x: u.x, y: u.y }); }
   // Everyone walks back to the truck; the day ends when they are all aboard.
-  headHome() { if (this.done) return false; this.leaving = true; this.alive.forEach((u, i) => this.give(u, { type: 'move', engage: true, x: this.site.truck.x + ((i % 4) - 1.5) * 26, y: this.site.truck.y - 40 + Math.floor(i / 4) * 22 })); this.say('Everyone back to the truck.'); return true; }
+  headHome() { if (this.done) return false; this.leaving = true; this.alive.forEach((u, i) => this.give(u, { type: 'move', engage: false, x: this.site.truck.x + ((i % 4) - 1.5) * 26, y: this.site.truck.y - 40 + Math.floor(i / 4) * 22 })); this.say('Extraction ordered. Reach the truck and hold for five seconds. The team will fire while retreating without chasing.'); return true; }
   // Meds patch up the chosen person, or whoever is hurt worst.
   useMeds(targetId) {
     const hurt = this.alive.filter(u => u.p.hp < u.p.maxHp), u = hurt.find(x => x.id === targetId) || hurt.sort((a, b) => a.p.hp / a.p.maxHp - b.p.hp / b.p.maxHp)[0];
+    if(this.done)return {ok:false,text:'The expedition is over.'};
     if (this.meds <= 0) return { ok: false, text: 'No meds left on the team.' };
     if (!u) return { ok: false, text: 'Nobody needs patching up.' };
     this.meds--; this.medsUsed++; u.p.hp = Math.min(u.p.maxHp, u.p.hp + SITE.medsHeal); this.floater(u.x, u.y - 40, `+${SITE.medsHeal} health`, '#b7d486'); this.game.emit('sound', { site: true, name: 'eat' });
@@ -210,12 +219,17 @@ export class SiteRun {
   }
 
   // ===== The simulation =====
-  update(dt) { let left = Math.min(dt, .25); while (left > 0 && !this.done) { const step = Math.min(left, 1 / 45); this.step(step); left -= step; } }
+  update(dt) { if(!Number.isFinite(dt)||dt<=0||this.done)return; let left = Math.min(dt, .25); while (left > 0 && !this.done) { const step = Math.min(left, 1 / 45); this.step(step); left -= step; } }
   step(dt) {
+    if(this.done || !Number.isFinite(dt) || dt<=0)return;
+    if(!this.alive.length){this.end('lost');return;}
     this.time += dt;
+    this.alert=Math.max(0,this.alert-dt*.65);
+    for(const seconds of [60,30])if(this.timeLeft()<=seconds&&!this.warnings.has(seconds)){this.warnings.add(seconds);this.say(`${seconds} seconds until sunset. Return to the truck to protect your cargo.`);}
+    if(this.objective().complete&&!this.objectiveAnnounced){this.objectiveAnnounced=true;this.say('Contract complete. Extract alive to claim the reward.');}
     if (this.time >= SITE.length) { this.end('sunset'); return; }
     this.spawnTimer -= dt;
-    if (this.spawnTimer <= 0) { this.spawnWanderer(); this.spawnTimer = SITE.spawnFirst + (SITE.spawnLast - SITE.spawnFirst) * clamp(this.time / SITE.length, 0, 1); }
+    if (this.spawnTimer <= 0) { this.spawnWanderer(); this.spawnTimer = (SITE.spawnFirst + (SITE.spawnLast - SITE.spawnFirst) * clamp(this.time / SITE.length, 0, 1))/(1+this.alert/70); }
     for (const u of this.alive) {
       for (const k of ['cooldown', 'flash', 'swing', 'hurt', 'hurtCooldown']) u[k] = Math.max(0, u[k] - dt);
       u.moving = false; u.hammering = false;
@@ -236,9 +250,17 @@ export class SiteRun {
     for (const s of this.shots) s.life -= dt;
     this.shots = this.shots.filter(s => s.life > 0);
     if (!this.alive.length) { this.end('lost'); return; }
-    if (this.leaving && this.alive.every(u => inRect(u, this.site.exit))) this.end('home');
+    if(this.leaving){const aboard=this.alive.every(u=>inRect(u,this.site.exit));this.extraction=aboard?this.extraction+dt:0;if(this.extraction>=this.extractionNeeded)this.end('home');}
   }
-  end(reason) { if (this.done) return; this.done = true; this.reason = reason; if (reason === 'sunset') this.say('The sun is setting. The team heads home with what they carry.'); }
+  end(reason) { if(this.done)return;
+    if(!this.alive.length)reason='lost';
+    if(reason==='sunset'&&!this.alive.every(u=>inRect(u,this.site.exit))){
+      for(const type of Object.keys(CARGO_WEIGHTS)){const lost=Math.ceil(this.bag[type]*.25);if(lost){this.bag[type]-=lost;this.cargoLost[type]=lost;}}
+      this.say('Emergency retreat: 25% of each bulk cargo resource was abandoned on the road.');
+    }
+    this.done=true;this.reason=reason;
+    if(reason==='sunset')this.say('Sunset forces the team home.');
+  }
 
   spawnWanderer() {
     if (this.zombies.length >= SITE.maxZombies) return;
@@ -277,7 +299,8 @@ export class SiteRun {
     const p = this.game.makePerson(name, u.x, u.y);
     p.hp = Math.round(p.maxHp * .7);
     this.found.push(p);
-    this.units.push(this.makeUnit(p, u.x + 16, u.y + 8, true));
+    const recruit=this.makeUnit(p,u.x+16,u.y+8,true);this.units.push(recruit);
+    if(this.leaving)this.give(recruit,{type:'move',engage:false,x:this.site.truck.x,y:this.site.truck.y-40});
     b.hider.joined = name;
     this.floater(u.x, u.y - 40, `${name} joins!`, '#b7d486');
     this.say(`${name} was hiding in the ${b.name.toLowerCase()} and joins the team.`);
@@ -316,7 +339,7 @@ export class SiteRun {
     return true;
   }
   // Gunshots carry: every zombie within earshot comes looking.
-  noise(at) { for (const z of this.zombies) if (z.state !== 'hunt' && dist(z, at) < SITE.noise) z.state = 'hunt'; }
+  noise(at) { this.alert=Math.min(100,this.alert+7*this.profile.noise); for (const z of this.zombies) if (z.state !== 'hunt' && dist(z, at) < SITE.noise*this.profile.noise) z.state = 'hunt'; }
   hitZombie(z, damage, angle, knockback, u) {
     if (z.hp <= 0) return;
     z.hp -= damage; z.hurt = .15;
@@ -336,7 +359,7 @@ export class SiteRun {
     for (const z of this.zombies) { const d = dist(z, u) - z.radius; if (z.hp > 0 && !this.zombieHidden(z) && d < reach && d < bestDistance && (!gun || clearPath(u, z, 0, this.obstacles))) { best = z; bestDistance = d; } }
     return best && { zombie: best, chase: !gun };
   }
-  searchRate(u) { const p = u.p; return (1 + (this.game.skill?.(p, 'scouting') || 0) * .1) * (p.specialty === 'scouting' ? 1.3 : 1) * (p.traits?.scout || 1) / SITE.searchTime; }
+  searchRate(u) { const p = u.p; return (1 + (this.game.skill?.(p, 'scouting') || 0) * .1) * (p.specialty === 'scouting' ? 1.3 : 1) * (p.traits?.scout || 1) * this.profile.search / SITE.searchTime; }
   followOrder(u, dt) {
     const o = u.order;
     if(o.role==='guard'&&['search','sweep'].includes(o.type)){
@@ -405,19 +428,37 @@ export class SiteRun {
     c.progress=Math.min(1,c.progress+dt*this.searchRate(u));if(c.progress>=1)this.collect(c,u);
   }
   collect(c, u) {
-    c.searched = true; this.searched++;
+    if(c.searched||this.done)return;
+    c.searched = true; this.searched++; this.alert=Math.min(100,this.alert+3*this.profile.noise);
     this.game.xp?.(u.p, 'scouting', 2);
     for (const u2 of this.alive) if (u2.order?.type === 'search' && u2.order.containerId === c.id) u2.order = null;
     if (!c.loot.length) { this.floater(c.x + c.w / 2, c.y - 6, 'Nothing useful', '#c7bfa0'); return; }
-    const got = [];
-    for (const item of c.loot) {
+    const got = [],leftovers=[];
+    for (const source of c.loot) {
+      const item={...source};
+      if(CARGO_WEIGHTS[item.type]){
+        item.n=Math.min(item.n,Math.max(0,Math.floor((this.capacity-this.cargoWeight())/CARGO_WEIGHTS[item.type])));
+        if(item.n<source.n)leftovers.push({...source,n:source.n-item.n});
+        if(!item.n)continue;
+      }
       if (item.type === 'gun' || item.type === 'scythe') { this.foundTools[item.type]++; this.arm(item.type, u); if (item.type === 'gun') this.ammo += SITE.foundShells; got.push(item.type === 'gun' ? `a shotgun (+${SITE.foundShells} shells)` : 'a scythe'); continue; }
       if (item.type === 'meds') { this.meds += item.n; this.bag.meds += item.n; } else this.bag[item.type] += item.n;
       got.push(`${item.n} ${LOOT_LABELS[item.type]}`);
     }
-    this.floater(c.x + c.w / 2, c.y - 6, '+' + got.join(', +'), '#ffd772');
+    c.leftovers=leftovers;
+    if(leftovers.length)this.say('Cargo limit reached. Excess supplies stay here; discard cargo and recover them before leaving.');
+    this.floater(c.x + c.w / 2, c.y - 6, got.length?'+' + got.join(', +'):'Cargo full', '#ffd772');
     this.game.emit('sound', { site: true, name: 'harvest' });
     if (c.loot.some(i => i.type === 'component')) this.say(`${u.p.name} found a radio part!`);
+  }
+  recoverCargo(){
+    if(this.done||this.leaving)return 0;
+    let recovered=0;
+    for(const c of this.site.containers){if(!c.leftovers?.length||!this.alive.some(u=>dist(u,{x:c.x+c.w/2,y:c.y+c.h/2})<85))continue;
+      for(const item of c.leftovers){const n=Math.min(item.n,Math.max(0,Math.floor((this.capacity-this.cargoWeight())/CARGO_WEIGHTS[item.type])));this.bag[item.type]+=n;item.n-=n;recovered+=n;}
+      c.leftovers=c.leftovers.filter(i=>i.n>0);
+    }
+    return recovered;
   }
   // A found weapon goes to the finder if they are unarmed (or trading a scythe for a gun), else to anyone unarmed, else the bag.
   arm(kind, finder) {
@@ -433,7 +474,7 @@ export class SiteRun {
     if (dist(body, target) < 6) return true;
     body.routeTimer -= dt;
     if (body.routeTimer <= 0 || !body.waypoint || body.goal !== target || dist(body, body.waypoint) < 5) { body.waypoint = nextWaypoint(body, target, 10, this.obstacles); body.goal = target; body.routeTimer = .5; }
-    const dx = body.waypoint.x - body.x, dy = body.waypoint.y - body.y, length = Math.hypot(dx, dy) || 1, stride = Math.min(length, speed * (body.p?.traits?.speed || 1) * dt);
+    const dx = body.waypoint.x - body.x, dy = body.waypoint.y - body.y, length = Math.hypot(dx, dy) || 1, stride = Math.min(length, speed * this.profile.speed * (body.p?.traits?.speed || 1) * dt);
     body.angle = Math.atan2(dy, dx);
     this.moveBody(body, dx / length * stride, dy / length * stride, 10);
     body.walk = (body.walk || 0) + dt * 11; body.moving = true;
@@ -499,7 +540,7 @@ export class SiteRun {
 
   // What the team brings home.
   result() {
-    return { reason: this.reason, bag: { ...this.bag }, foundTools: { ...this.foundTools }, found: this.found.filter(p => p.hp > 0), kills: this.kills, searched: this.searched, meds: this.meds, ammo: this.ammo, medsUsed: this.medsUsed, deaths: [...this.deaths], hurt: this.hurt, time: this.time };
+    return { approach:this.approach,contract:this.contract,objective:this.objective(),cargoLost:{...this.cargoLost},alert:Math.round(this.alert),log:this.log.map(e=>({...e})), reason: this.reason, bag: { ...this.bag }, foundTools: { ...this.foundTools }, found: this.found.filter(p => p.hp > 0), kills: this.kills, searched: this.searched, meds: this.meds, ammo: this.ammo, medsUsed: this.medsUsed, deaths: [...this.deaths], hurt: this.hurt, time: this.time };
   }
 }
 

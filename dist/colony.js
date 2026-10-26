@@ -1,3 +1,5 @@
+import {installFarmCommand} from './farm-command.js';
+import {planError,CONTRACTS} from './expedition-rules.js';
 import {defensePlanningMethods} from './defense-planning.js';
 import {ensurePerimeter,validPerimeter,perimeterMethods,GATE_INSIDE,GATE_OUTSIDE} from './perimeter.js';
 import {SITE,SiteRun,createSite,ensureExpeditions,validExpeditions} from './expedition.js';
@@ -122,6 +124,8 @@ export class ColonyEngine extends GameEngine{
  toolTotal(kind){return super.toolTotal(kind)+(this.s.extraTools?.[kind]||0);}
  roomForSurvivors(){return Math.max(0,MAX_PEOPLE-this.s.people.length);}
  beginExpedition(placeId,ids,kit={}){const s=this.s,place=PLACES[placeId];
+  if(!kit||typeof kit!=='object'||!Array.isArray(ids))return {error:'Choose a team and expedition kit.'};
+  const invalid=planError(kit);if(invalid)return {error:invalid};
   if(!place||!ACTIVE.has(s.mode)||s.phase!=='day')return {error:'Expeditions leave by daylight.'};
   if(s.phaseTime>SITE.departure)return {error:'Teams leave after breakfast. Plan an expedition in the morning.'};
   if(!s.discoveries[placeId])return {error:'Nobody knows the way there yet. Scouts find new places.'};
@@ -134,7 +138,7 @@ export class ColonyEngine extends GameEngine{
   for(const kind of ['gun','scythe']){const need=team.filter(p=>want[p.id]===kind).length,have=this.toolsFree(kind)+team.filter(p=>p.tool===kind).length;if(need>have)return {error:`Only ${have} ${kind==='gun'?'shotgun':'scythe'}${have===1?'':'s'} can be packed.`};}
   const guns=team.filter(p=>want[p.id]==='gun').length,shells=clamp(Math.floor(kit.shells??Math.min(s.ammo,guns*12)),0,s.ammo),meds=clamp(Math.floor(kit.meds??0),0,s.meds);
   s.food-=team.length;s.water-=team.length;s.ammo-=shells;s.meds-=meds;
-  const m={id:++this.missionId,place:placeId,members:team.map(p=>p.id),stage:'site',day:s.day,kit:{shells,meds}};
+  const m={id:++this.missionId,place:placeId,members:team.map(p=>p.id),stage:'site',day:s.day,kit:{shells,meds,approach:kit.approach||'balanced',contract:kit.contract||'scavenging'}};
   if(s.expeditionBonus&&(!s.expeditionBonus.place||s.expeditionBonus.place===placeId)){m.bonus={...s.expeditionBonus};s.expeditionBonus=null;}
   s.missions.push(m);
   for(const p of team){p.tool=want[p.id]??null;Object.assign(p,{expeditionId:m.id,away:1e6,inside:false,order:null,task:null,orders:[],patrol:[],status:`Expedition: ${place.name}`});this.logWork(p,'Expedition to the '+place.name.toLowerCase());}
@@ -158,13 +162,14 @@ export class ColonyEngine extends GameEngine{
   const team=s.people.filter(p=>p.expeditionId===m.id);
   team.forEach((p,i)=>{Object.assign(p,{expeditionId:null,away:0,inside:false,panic:false,order:null,task:null,orders:[],patrol:[],gateReturn:0,waypoint:null,goal:null,x:GATE_INSIDE.x-((team.length-1)/2-i)*18,y:GATE_INSIDE.y-24});this.xp(p,'scouting',6);p.morale=Math.min(100,p.morale+5);});
   const joined=[];if(!lost)for(const p of r.found){if(s.people.length>=MAX_PEOPLE)break;Object.assign(p,{expeditionId:null,away:0,inside:false,order:null,task:null,waypoint:null,goal:null,x:GATE_INSIDE.x-20+joined.length*18,y:GATE_INSIDE.y-50});s.people.push(p);s.today.arrivals.push(p.name);joined.push(p.name);}
+  const reward=!lost&&r.objective?.complete?CONTRACTS[r.contract].reward:0;s.scrap+=reward;
   s.kills+=r.kills;s.today.kills+=r.kills;m.stage='done';
-  m.result={reason:r.reason,searched:r.searched,kills:r.kills,joined:joined.length,deaths:r.deaths.length};
+  m.result={contract:r.contract||'scavenging',reward,reason:r.reason,searched:r.searched,kills:r.kills,joined:joined.length,deaths:r.deaths.length};
   s.today.expedition={place:m.place,searched:r.searched,kills:r.kills,joined:joined.length,deaths:r.deaths.length,lost};
   if(!lost&&!s.discoveredPlans.includes(m.place))s.discoveredPlans.push(m.place);
   s.missionHistory.push({place:m.place,day:s.day,choice:'site',injured:r.hurt>0});s.forecast=true;
   if(team.length)this.homesteadExpedition(m);
-  const summary={place:m.place,name:place.name,reason:r.reason,bag:lost?{}:r.bag,tools:lost?{}:r.foundTools,joined,deaths:r.deaths,kills:r.kills,searched:r.searched,medsUsed:r.medsUsed,meds:lost?0:r.meds,ammo:lost?0:r.ammo,team:team.map(p=>p.name)};
+  const summary={approach:r.approach,objective:r.objective,reward,cargoLost:r.cargoLost||{},log:r.log||[],place:m.place,name:place.name,reason:r.reason,bag:lost?{}:r.bag,tools:lost?{}:r.foundTools,joined,deaths:r.deaths,kills:r.kills,searched:r.searched,medsUsed:r.medsUsed,meds:lost?0:r.meds,ammo:lost?0:r.ammo,team:team.map(p=>p.name)};
   this.notice(lost?`Nobody came back from the ${place.name.toLowerCase()}.`:`The team is back from the ${place.name.toLowerCase()}. It is already dusk.`,true);
   this.emit('sound',{name:lost?'lose':'scout'});this.emit('expedition-home',{summary});
   return summary;}
@@ -184,5 +189,6 @@ export class ColonyEngine extends GameEngine{
 }
 
 Object.assign(ColonyEngine.prototype,farmMethods,homesteadMethods,perimeterMethods,houseMethods,defensePlanningMethods);
+installFarmCommand(ColonyEngine);
 // Cheats (Update 34) wrap the finished rules, so they go last.
 installCheats(ColonyEngine,{places:PLACES});

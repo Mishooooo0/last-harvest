@@ -1,3 +1,4 @@
+import {installBriefing} from './briefing.js';
 import {installMorningWheel} from './wheel-ui.js';
 import {installOpening} from './opening.js';
 import {BUILDINGS,UPGRADES,GADGETS,PANTRY_SIZE,WATER_CAP,DAWN_SUPPLIES,MEAL_COST,JOBS,MAX_PEOPLE,TOOLS,WORLD,FARM_CENTER,FARMHOUSE,SHOP} from './engine.js';
@@ -95,6 +96,7 @@ document.querySelectorAll('[data-close-pop]').forEach(b=>b.addEventListener('cli
 // The button next to the timer: end the day early, start the night when the sun is down, greet the dawn.
 function confirmPhase(){if(!live())return;unlockAudio();if(game.confirmPhase()){togglePop('supplies-pop',false);focusGame();}else notice('The night is not over yet. Hold the farm until the timer runs out.');sync();}
 $('phase-confirm').addEventListener('click',confirmPhase);
+installBriefing({game,button:$('briefing-btn'),sync,clearKeys:()=>keys.clear()});
 $('ops-btn').addEventListener('click',()=>{unlockAudio();if(!ops.openBoard('midday'))notice('Start your run to plan operations.');sync();});
 
 // ===== The camera: you look down on the farm as its leader. WASD to pan, scroll to zoom. =====
